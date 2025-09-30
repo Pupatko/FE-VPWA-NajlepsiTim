@@ -1,95 +1,137 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-header elevated>
+    
+    <q-header class="custom-header">
       <q-toolbar>
-        <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
+        <q-btn dense flat round icon="menu" @click="toggleLeftDrawer" class="text-white" />
+        
+        <q-toolbar-title class="text-white">
+          <q-avatar>
+            <q-icon name="chat" />
+          </q-avatar>
+          bondragerchat
+        </q-toolbar-title>
 
-        <q-toolbar-title> Quasar App </q-toolbar-title>
-
-        <div>Quasar v{{ $q.version }}</div>
+        <user-status 
+          v-model="userStatus" 
+          :nickname="currentUser" 
+        />
       </q-toolbar>
     </q-header>
 
-    <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
-      <q-list>
-        <q-item-label header> Essential Links </q-item-label>
-
-        <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" />
-      </q-list>
+    <q-drawer 
+      show-if-above 
+      v-model="leftDrawerOpen" 
+      side="left" 
+      bordered 
+      class="custom-drawer"
+    >
+      <channel-list 
+        :channels="channels"
+        :current-channel="currentChannel"
+        @channel-select="handleChannelSelect"
+      />
     </q-drawer>
 
-    <q-page-container>
+    <q-page-container class="custom-page-container">
       <router-view />
     </q-page-container>
+
+    <q-footer class="command-prompt-wrapper">
+      <command-prompt 
+        @send="handleSendMessage"
+        @command="handleCommand"
+      />
+    </q-footer>
+
   </q-layout>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue';
-import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
+import { ref } from 'vue'
+import CommandPrompt from '../components/CommandPrompt.vue'
+import ChannelList from '../components/ChannelList.vue'
+import UserStatus from '../components/UserStatus.vue'
 
-const linksList: EssentialLinkProps[] = [
-  {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev',
-  },
-  {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
-    icon: 'code',
-    link: 'https://github.com/quasarframework',
-  },
-  {
-    title: 'Discord Chat Channel',
-    caption: 'chat.quasar.dev',
-    icon: 'chat',
-    link: 'https://chat.quasar.dev',
-  },
-  {
-    title: 'Forum',
-    caption: 'forum.quasar.dev',
-    icon: 'record_voice_over',
-    link: 'https://forum.quasar.dev',
-  },
-  {
-    title: 'Twitter',
-    caption: '@quasarframework',
-    icon: 'rss_feed',
-    link: 'https://twitter.quasar.dev',
-  },
-  {
-    title: 'Facebook',
-    caption: '@QuasarFramework',
-    icon: 'public',
-    link: 'https://facebook.quasar.dev',
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev',
-  },
-];
-
-export default defineComponent({
-  name: 'MainLayout',
-
+export default {
   components: {
-    EssentialLink,
+    CommandPrompt,
+    ChannelList,
+    UserStatus
   },
-
   setup() {
-    const leftDrawerOpen = ref(false);
+    const leftDrawerOpen = ref(false)
+    const userStatus = ref('online')
+    const currentUser = ref('user123')
+    const currentChannel = ref('general')
+    const channels = ref([
+      { id: '1', name: 'general', type: 'public', unread: 0 },
+      { id: '2', name: 'random', type: 'public', unread: 3 },
+      { id: '3', name: 'private-room', type: 'private', unread: 1 }
+    ])
+
+    const toggleLeftDrawer = () => {
+      leftDrawerOpen.value = !leftDrawerOpen.value
+    }
+
+    const handleChannelSelect = (channelId) => {
+      console.log('todo: switch to channel:', channelId)
+      // todo: implement channel switching logic
+    }
+
+    const handleSendMessage = (message) => {
+      console.log('todo: send message:', message)
+      // todo: implement message sending
+    }
+
+    const handleCommand = (command) => {
+      console.log('todo: execute command:', command)
+      // todo: implement command execution
+    }
 
     return {
-      linksList,
       leftDrawerOpen,
-      toggleLeftDrawer() {
-        leftDrawerOpen.value = !leftDrawerOpen.value;
-      },
-    };
-  },
-});
+      userStatus,
+      currentUser,
+      currentChannel,
+      channels,
+      toggleLeftDrawer,
+      handleChannelSelect,
+      handleSendMessage,
+      handleCommand
+    }
+  }
+}
 </script>
+
+<style lang="scss" scoped>
+.custom-header {
+  background-color: $primary !important;
+  box-shadow: $shadow-medium;
+  
+  .q-toolbar {
+    color: $text-inverse;
+  }
+}
+
+.custom-drawer {
+  background-color: $sidebar-bg !important;
+  border-right: 1px solid $border-light;
+}
+
+.custom-page-container {
+  background-color: $chat-bg;
+  color: $text-primary;
+}
+
+.command-prompt-wrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: $message-area-bg;
+  border-top: 1px solid $border-light;
+  padding: 8px;
+}
+</style>
