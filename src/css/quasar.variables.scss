@@ -15,40 +15,40 @@
 // src/css/quasar.variables.scss
 
 // main
-$primary: #7C3AED;
-$secondary: #6366F1;
-$accent: #F59E0B;
-$dark: #1F2937;
-$positive: #10B981;
-$negative: #EF4444;
-$info: #3B82F6;
-$warning: $accent;
+$primary        : #7C3AED;
+$secondary      : #6366F1;
+$accent         : #F59E0B;
+$dark           : #1F2937;
+$positive       : #10B981;
+$negative       : #EF4444;
+$info           : #3B82F6;
+$warning        : $accent;
 
 // bg
-$chat-bg: #F9FAFB;
-$sidebar-bg: #374151;
+$chat-bg        : #F9FAFB;
+$sidebar-bg     : #374151;
 $message-area-bg: #FFFFFF;
 $command-line-bg: #111827;
 
 // text
-$text-primary: #111827;
-$text-secondary: #6B7280;
-$text-muted: #9CA3AF;
-$text-inverse: #F9FAFB;
+$text-primary   : #111827;
+$text-secondary : #6B7280;
+$text-muted     : #9CA3AF;
+$text-inverse   : #F9FAFB;
 
 // chat
-$online-status: #10B981;
-$away-status: #F59E0B; 
-$offline-status: #6B7280;
-$dnd-status: #EF4444;
+$online-status  : #10B981;
+$away-status    : #F59E0B; 
+$offline-status : #6B7280;
+$dnd-status     : #EF4444;
 
-$channel-active: #EDE9FE;
-$channel-hover: #F3F4F6;
-$message-highlight: #FEF3C7;
+$channel-active     : #EDE9FE;
+$channel-hover      : #F3F4F6;
+$message-highlight  : #FEF3C7;
 
 // borders
-$shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.1);
-$shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);  
-$border-light: #E5E7EB;
-$border-radius: 8px;
+$shadow-soft    : 0 1px 3px rgba(0, 0, 0, 0.1);
+$shadow-medium  : 0 4px 6px rgba(0, 0, 0, 0.1);  
+$border-light   : #E5E7EB;
+$border-radius  : 8px;
 
