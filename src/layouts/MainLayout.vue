@@ -1,63 +1,51 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
-    
-    <q-header class="custom-header">
-      <q-toolbar>
-        <q-btn dense flat round icon="menu" @click="toggleLeftDrawer" class="text-white" />
-        
-        <q-toolbar-title class="text-white">
-          <q-avatar>
-            <q-icon name="chat" />
-          </q-avatar>
-          bondragerchat
-        </q-toolbar-title>
-
-        <user-status 
-          v-model="userStatus" 
-          :nickname="currentUser" 
-        />
-      </q-toolbar>
+  <q-layout view="lHh Lpr lFf" style="background: $chat-bg">
+    <q-header elevated>
+      <!-- <chat-header /> -->
+      <q-item>
+        <!-- Placeholder for ChatHeader -->
+      </q-item>
     </q-header>
 
-    <q-drawer 
-      show-if-above 
-      v-model="leftDrawerOpen" 
-      side="left" 
-      bordered 
-      class="custom-drawer"
-    >
-      <channel-list 
-        :channels="channels"
-        :current-channel="currentChannel"
-        @channel-select="handleChannelSelect"
-      />
+    <q-drawer show-if-above v-model="leftDrawerOpen" side="left" bordered class="custom-drawer">
+      <!-- <channel-list /> -->
+      <q-item>
+        <!-- Placeholder for ChannelList -->
+      </q-item>
     </q-drawer>
 
     <q-page-container class="custom-page-container">
       <router-view />
     </q-page-container>
 
-    <q-footer class="command-prompt-wrapper">
-      <command-prompt 
-        @send="handleSendMessage"
-        @command="handleCommand"
-      />
+    <q-footer class="footer-container">
+      <div class="message-input-wrapper">
+        <!-- <message-input /> -->
+        <q-item>
+          <!-- Placeholder for MessageInput -->
+        </q-item>
+      </div>
+      <div class="command-prompt-wrapper">
+        <CommandPrompt @send="handleSendMessage" @command="handleCommand" />
+      </div>
     </q-footer>
-
   </q-layout>
 </template>
 
 <script lang="ts">
 import { ref } from 'vue'
+import ChatPage from '../pages/ChatPage.vue'
 import CommandPrompt from '../components/CommandPrompt.vue'
-import ChannelList from '../components/ChannelList.vue'
-import UserStatus from '../components/UserStatus.vue'
+// import ChannelList from '../components/ChannelList.vue'
+// import MessageInput from '../components/MessageInput.vue'
+// import ChatHeader from '../components/ChatHeader.vue'
 
 export default {
   components: {
-    CommandPrompt,
-    ChannelList,
-    UserStatus
+    CommandPrompt
+    // ChannelList,
+    // MessageInput,
+    // ChatHeader
   },
   setup() {
     const leftDrawerOpen = ref(false)
@@ -76,17 +64,18 @@ export default {
 
     const handleChannelSelect = (channelId) => {
       console.log('todo: switch to channel:', channelId)
-      // todo: implement channel switching logic
     }
 
     const handleSendMessage = (message) => {
       console.log('todo: send message:', message)
-      // todo: implement message sending
     }
 
     const handleCommand = (command) => {
       console.log('todo: execute command:', command)
-      // todo: implement command execution
+    }
+
+    const handleTyping = (isTyping) => {
+      console.log('todo: handle typing:', isTyping)
     }
 
     return {
@@ -98,22 +87,14 @@ export default {
       toggleLeftDrawer,
       handleChannelSelect,
       handleSendMessage,
-      handleCommand
+      handleCommand,
+      handleTyping
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.custom-header {
-  background-color: $primary !important;
-  box-shadow: $shadow-medium;
-  
-  .q-toolbar {
-    color: $text-inverse;
-  }
-}
-
 .custom-drawer {
   background-color: $sidebar-bg !important;
   border-right: 1px solid $border-light;
@@ -122,16 +103,26 @@ export default {
 .custom-page-container {
   background-color: $chat-bg;
   color: $text-primary;
+  padding-bottom: 180px;
 }
 
-.command-prompt-wrapper {
+.footer-container {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 1000;
+  background-color: transparent;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.message-input-wrapper {
   background-color: $message-area-bg;
   border-top: 1px solid $border-light;
-  padding: 8px;
+}
+
+.command-prompt-wrapper {
+  background-color: $command-line-bg;
+  border-top: 1px solid $border-light;
 }
 </style>
