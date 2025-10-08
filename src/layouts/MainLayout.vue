@@ -1,17 +1,37 @@
 <template>
   <q-layout view="lHh Lpr lFf" style="background: $chat-bg">
     <q-header elevated>
-      <!-- <chat-header /> -->
-      <q-item>
-        <!-- Placeholder for ChatHeader -->
-      </q-item>
+      <q-toolbar>
+
+        <!-- 🔹 Ľavá strana -->
+        <q-toolbar-title>
+          ChannelName
+        </q-toolbar-title>
+
+        <!-- 🔹 Pravá strana -->
+        <div class="q-gutter-x-md">
+          <q-btn
+            flat
+            round
+            icon="settings"
+            @click="$router.push('/settings')"
+            aria-label="Settings"
+          />
+          <q-btn
+            flat
+            round
+            icon="account_circle"
+            @click="$router.push('/login')"
+            aria-label="User"
+          />
+        </div>
+
+      </q-toolbar>
     </q-header>
 
     <q-drawer show-if-above v-model="leftDrawerOpen" side="left" bordered class="custom-drawer">
       <!-- <channel-list /> -->
-      <q-item>
-        <!-- Placeholder for ChannelList -->
-      </q-item>
+      <ChannelPanel />
     </q-drawer>
 
     <q-page-container class="custom-page-container">
@@ -36,14 +56,14 @@
 import { ref } from 'vue'
 import ChatPage from '../pages/ChatPage.vue'
 import CommandPrompt from '../components/CommandPrompt.vue'
-// import ChannelList from '../components/ChannelList.vue'
+import ChannelPanel from '../components/ChannelPanel.vue'
 // import MessageInput from '../components/MessageInput.vue'
 // import ChatHeader from '../components/ChatHeader.vue'
 
 export default {
   components: {
-    CommandPrompt
-    // ChannelList,
+    CommandPrompt,
+    ChannelPanel,
     // MessageInput,
     // ChatHeader
   },
@@ -105,6 +125,13 @@ export default {
   color: $text-primary;
   padding-bottom: 180px;
 }
+
+.app-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+}
+
 
 .footer-container {
   position: fixed;
