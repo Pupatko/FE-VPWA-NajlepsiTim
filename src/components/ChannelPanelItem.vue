@@ -1,5 +1,5 @@
 <template>
-  <q-item clickable v-ripple @click="selectChannel">
+  <q-item clickable v-ripple @click="selectChannel" class="channel-item">
     <q-item-section avatar>
       <q-icon :name="icon" />
     </q-item-section>
@@ -21,8 +21,19 @@ const selectChannel = () => {
 }
 </script>
 
-<style scoped>
-.q-item:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+<style lang="scss" scoped>
+.channel-item {
+  color: $text-inverse;
+  
+  &:hover {
+    background-color: $channel-hover;
+    color: $text-primary;
+  }
+  
+  &.q-item--active {
+    background-color: $channel-active;
+    color: $primary;
+    font-weight: 600;
+  }
 }
 </style>

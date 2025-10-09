@@ -27,9 +27,13 @@ const setType = (type) => {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .channel-type {
-  background-color: #252533;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: $sidebar-bg;
+  border-bottom: 1px solid $border-light;
+  
+  .q-btn {
+    color: $text-inverse;
+  }
 }
 </style>

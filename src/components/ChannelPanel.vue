@@ -14,13 +14,13 @@ import ChannelPanelType from './ChannelPanelType.vue'
 import ChannelPanelList from './ChannelPanelList.vue'
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .channel-panel {
   width: 260px;
-  background-color: #1e1e2f;
-  color: white;
+  background-color: $sidebar-bg;
+  color: $text-inverse;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid $border-light;
 }
 </style>

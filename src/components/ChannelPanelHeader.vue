@@ -15,9 +15,9 @@ const addChannel = () => {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .channel-panel-header {
-  background-color: #2c2c3a;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: $dark;
+  border-bottom: 1px solid $border-light;
 }
 </style>

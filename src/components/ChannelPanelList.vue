@@ -25,10 +25,10 @@ const channels = ref([
 ])
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .channel-list-area {
-  background-color: #FEF3C7; 
-  color: black;
+  background-color: $sidebar-bg;
+  color: $text-inverse;
   height: 100%;
 }
 </style>
