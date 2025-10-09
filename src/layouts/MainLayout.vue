@@ -3,12 +3,12 @@
     <q-header elevated>
       <q-toolbar>
 
-        <!-- 🔹 Ľavá strana -->
+        <!-- left side -->
         <q-toolbar-title>
-          ChannelName
+          {{ currentChannel }}
         </q-toolbar-title>
 
-        <!-- 🔹 Pravá strana -->
+        <!-- right side -->
         <div class="q-gutter-x-md">
           <q-btn
             flat
@@ -30,7 +30,6 @@
     </q-header>
 
     <q-drawer show-if-above v-model="leftDrawerOpen" side="left" bordered class="custom-drawer">
-      <!-- <channel-list /> -->
       <ChannelPanel />
     </q-drawer>
 
@@ -40,13 +39,20 @@
 
     <q-footer class="footer-container">
       <div class="message-input-wrapper">
-        <!-- <message-input /> -->
-        <q-item>
-          <!-- Placeholder for MessageInput -->
-        </q-item>
+        <MessageInput 
+          @send="handleSendMessage" 
+          @typing="handleTyping" 
+        />
+        
+        <!-- typing indicator below input -->
+        <!-- placeholder for typing indicator -->
       </div>
+      
       <div class="command-prompt-wrapper">
-        <CommandPrompt @send="handleSendMessage" @command="handleCommand" />
+        <CommandPrompt 
+          @send="handleSendMessage" 
+          @command="handleCommand" 
+        />
       </div>
     </q-footer>
   </q-layout>
@@ -54,24 +60,25 @@
 
 <script lang="ts">
 import { ref } from 'vue'
-import ChatPage from '../pages/ChatPage.vue'
 import CommandPrompt from '../components/CommandPrompt.vue'
 import ChannelPanel from '../components/ChannelPanel.vue'
-// import MessageInput from '../components/MessageInput.vue'
-// import ChatHeader from '../components/ChatHeader.vue'
+import MessageInput from '../components/MessageInput.vue'
+// import TypingIndicator from '../components/TypingIndicator.vue'
 
 export default {
   components: {
     CommandPrompt,
     ChannelPanel,
-    // MessageInput,
-    // ChatHeader
+    MessageInput,
+    // TypingIndicator
   },
   setup() {
     const leftDrawerOpen = ref(false)
     const userStatus = ref('online')
     const currentUser = ref('user123')
     const currentChannel = ref('general')
+    // const typingUsers = ref([]) // track who is typing
+    
     const channels = ref([
       { id: '1', name: 'general', type: 'public', unread: 0 },
       { id: '2', name: 'random', type: 'public', unread: 3 },
@@ -88,14 +95,17 @@ export default {
 
     const handleSendMessage = (message) => {
       console.log('todo: send message:', message)
+      // todo: send via websocket or api
     }
 
     const handleCommand = (command) => {
       console.log('todo: execute command:', command)
+      // todo: handle commands like /join, /leave, etc
     }
 
     const handleTyping = (isTyping) => {
       console.log('todo: handle typing:', isTyping)
+      // todo: broadcast typing status to other users via websocket
     }
 
     return {
@@ -104,6 +114,7 @@ export default {
       currentUser,
       currentChannel,
       channels,
+      // typingUsers,
       toggleLeftDrawer,
       handleChannelSelect,
       handleSendMessage,
@@ -132,7 +143,6 @@ export default {
   color: white;
 }
 
-
 .footer-container {
   position: fixed;
   bottom: 0;
@@ -146,6 +156,11 @@ export default {
 .message-input-wrapper {
   background-color: $message-area-bg;
   border-top: 1px solid $border-light;
+  position: relative;
+}
+
+.typing-indicator-container {
+  padding: 0 16px 8px 16px;
 }
 
 .command-prompt-wrapper {
