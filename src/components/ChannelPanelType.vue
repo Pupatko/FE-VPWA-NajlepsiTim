@@ -1,13 +1,13 @@
 <template>
   <div class="q-pa-sm flex justify-around channel-type">
     <q-btn
-      :color="activeType === 'public' ? 'primary' : 'grey-8'"
+      :color="activeType === 'public' ? 'channel-active' : 'grey-6'"
       label="Public"
       flat
       @click="setType('public')"
     />
     <q-btn
-      :color="activeType === 'private' ? 'primary' : 'grey-8'"
+      :color="activeType === 'private' ? 'channel-active' : 'grey-6'"
       label="Private"
       flat
       @click="setType('private')"
