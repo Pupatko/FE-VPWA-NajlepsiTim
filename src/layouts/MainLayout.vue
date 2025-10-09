@@ -3,9 +3,19 @@
     <q-header elevated>
       <q-toolbar>
 
-        <!-- left side -->
+        <!-- left side with menu toggle -->
+        <q-btn 
+          dense 
+          flat 
+          round 
+          icon="menu" 
+          @click="toggleLeftDrawer" 
+          class="q-mr-sm"
+          aria-label="Toggle menu"
+        />
+        
         <q-toolbar-title>
-          {{ currentChannel }}
+          # {{ currentChannel }}
         </q-toolbar-title>
 
         <!-- right side -->
@@ -29,7 +39,13 @@
       </q-toolbar>
     </q-header>
 
-    <q-drawer show-if-above v-model="leftDrawerOpen" side="left" bordered class="custom-drawer">
+    <q-drawer 
+      v-model="leftDrawerOpen" 
+      show-if-above 
+      side="left" 
+      bordered 
+      class="custom-drawer"
+    >
       <ChannelPanel />
     </q-drawer>
 
