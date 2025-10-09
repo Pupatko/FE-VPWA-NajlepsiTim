@@ -1,117 +1,104 @@
 <template>
   <q-page class="chat-page">
-    <!-- messages area -->
-    <div class="messages-area" ref="messagesContainer">
-      <!-- load more button -->
-      <div v-if="hasOlderMessages" class="load-more">
-        <q-btn 
-          flat 
-          @click="loadOlderMessages" 
-          :loading="loadingMessages"
-          class="load-more-btn"
-        >
-          load older messages
-        </q-btn>
-      </div>
+    <div class="messages-area">
+      
+      <q-infinite-scroll @load="onLoad" reverse>
+        <template v-slot:loading>
+          <div class="row justify-center q-my-md">
+            <q-spinner color="primary" name="dots" size="40px" />
+          </div>
+        </template>
 
-      <!-- messages list -->
-      <div v-for="message in messages" :key="message.id">
-        <q-item>
-          <!-- Placeholder for MessageItem -->
-        </q-item>
-      </div>
+        <!-- messages list -->
+        <MessageItem
+          v-for="message in messages"
+          :key="message.id"
+          :message="message"
+          :current-user="currentUser"
+        />
+      </q-infinite-scroll>
 
       <!-- typing indicator -->
-      <q-item v-if="someoneTyping">
-        <!-- Placeholder for TypingIndicator -->
-      </q-item>
+      <TypingIndicator 
+        v-if="typingUsers.length > 0"
+        :users="typingUsers"
+      />
     </div>
   </q-page>
 </template>
 
 <script lang="ts">
 import { ref, onMounted } from 'vue'
+import MessageItem from '../components/MessageItem.vue'
+import TypingIndicator from '../components/TypingIndicator.vue'
 
 export default {
+  components: {
+    MessageItem,
+    TypingIndicator
+  },
   setup() {
-    const messagesContainer = ref(null)
-    const loadingMessages = ref(false)
-    const hasOlderMessages = ref(true)
-    const typingUsers = ref(['alice', 'bob'])
-    const someoneTyping = ref(false)
     const currentUser = ref('me')
+    const typingUsers = ref([])
     
     const messages = ref([
       {
         id: '1',
         author: 'roman123',
-        content: 'random2341',
-        timestamp: new Date(Date.now() - 10)
+        content: 'hey everyone! how is it going?',
+        timestamp: new Date(Date.now() - 10000)
       },
       {
         id: '2',
         author: 'roman321',
-        content: 'random4312',
-        timestamp: new Date(Date.now() - 9)
+        content: 'pretty good! working on this chat app',
+        timestamp: new Date(Date.now() - 9000)
       },
       {
         id: '3',
-        author: 'roman231',
-        content: 'random1234',
-        timestamp: new Date(Date.now() - 8)
+        author: 'me',
+        content: 'nice! looks great so far',
+        timestamp: new Date(Date.now() - 8000)
       },
     ])
 
-    const loadOlderMessages = async () => {
-      loadingMessages.value = true
-      
-      console.log('todo: load older messages from server')
+    // load older messages - load multiple at once
+    const onLoad = (index, done) => {
+      console.log('loading older messages...')
       
       setTimeout(() => {
-        const olderMessages = [
-          {
-            id: '1',
-            author: 'roman',
-            content: 'random',
-            timestamp: new Date(Date.now() - 1)
-          },
-          {
-            id: '2',
-            author: 'roman',
-            content: 'random',
-            timestamp: new Date(Date.now() - 2)
-          }
-        ]
+        // load 10 messages at once
+        const newMessages = []
+        for (let i = 0; i < 10; i++) {
+          newMessages.push({
+            id: `old-${index}-${i}`,
+            author: i % 3 === 0 ? 'me' : `user${i}`,
+            content: `older message ${index * 10 + i}`,
+            timestamp: new Date(Date.now() - 20000 - (index * 10000) - (i * 1000))
+          })
+        }
         
-        messages.value.unshift(...olderMessages)
-        loadingMessages.value = false
+        // add to beginning
+        messages.value.splice(0, 0, ...newMessages)
         
-        if (messages.value.length > 10) {
-          hasOlderMessages.value = false
+        // stop after 50 loads (500 messages total)
+        if (index > 50) {
+          done(true)
+        } else {
+          done()
         }
       }, 1000)
     }
 
-    const scrollToBottom = () => {
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-      }
-    }
-
     onMounted(() => {
-      console.log('todo: initialize chat page')
-      scrollToBottom()
+      console.log('chat page ready')
     })
 
     return {
       messages,
-      messagesContainer,
-      loadingMessages,
-      hasOlderMessages,
       typingUsers,
-      someoneTyping,
       currentUser,
-      loadOlderMessages
+      onLoad
     }
   }
 }
@@ -119,33 +106,13 @@ export default {
 
 <style lang="scss" scoped>
 .chat-page {
-  display: flex;
-  flex-direction: column;
   height: 100%;
-  overflow: hidden;
 }
 
 .messages-area {
-  flex: 1;
+  height: 100%;
   overflow-y: auto;
   padding: 16px;
   background-color: $chat-bg;
-  padding-bottom: 24px; // for the message input space
-
-  .load-more {
-    text-align: center;
-    margin-bottom: 16px;
-
-    .load-more-btn {
-      color: $primary;
-    }
-  }
-}
-
-@media (max-width: 768px) {
-  .messages-area {
-    padding: 12px;
-    padding-bottom: 24px;
-  }
 }
 </style>
