@@ -2,12 +2,12 @@
   <q-scroll-area class="fit channel-list-area">
     <q-list>
       <ChannelPanelItem
-        v-for="ch in channels"
+        v-for="ch in filteredChannels"
         :key="ch.id"
         :channel-id="ch.id"
         :name="ch.name"
         :icon="ch.icon"
-        :is-admin="ch.isAdmin"
+        :is-admin="ch.isAdmin"      
       />
     </q-list>
   </q-scroll-area>
@@ -17,46 +17,45 @@
 import { ref, computed } from 'vue'
 import ChannelPanelItem from './ChannelPanelItem.vue'
 
-// 🔹 typ pre kanál
 interface Channel {
   id: number
   name: string
   icon: string
   isAdmin: boolean
+  isPrivate: boolean
 }
 
-// 🔹 tvoje dáta
 const myChannels = ref<Channel[]>([
-  { id: 1, name: '# general', icon: 'tag', isAdmin: true },
-  { id: 2, name: '# random', icon: 'tag', isAdmin: false },
-  { id: 3, name: '# dev', icon: 'tag', isAdmin: true },
-  { id: 4, name: '# design', icon: 'tag', isAdmin: false },
-  { id: 5, name: '# test kanal', icon: 'tag', isAdmin: false }
+  { id: 1, name: '# general', icon: 'tag', isAdmin: true, isPrivate: false },
+  { id: 2, name: '# random', icon: 'tag', isAdmin: false, isPrivate: false },
+  { id: 3, name: '# dev', icon: 'tag', isAdmin: true, isPrivate: false },
+  { id: 4, name: '# design', icon: 'tag', isAdmin: false, isPrivate: false },
+  { id: 5, name: '# test kanal', icon: 'tag', isAdmin: false, isPrivate: true }
 ])
 
 const publicChannels: Channel[] = [
-  { id: 1, name: '# general', icon: 'tag', isAdmin: true },
-  { id: 2, name: '# random', icon: 'tag', isAdmin: false },
-  { id: 3, name: '# dev', icon: 'tag', isAdmin: true },
-  { id: 4, name: '# another public channel', icon: 'tag', isAdmin: false },
-  { id: 5, name: '# design', icon: 'tag', isAdmin: false },
-  { id: 6, name: '# test kanal', icon: 'tag', isAdmin: false },
-  { id: 7, name: '# public channel 1', icon: 'tag', isAdmin: false },
-  { id: 8, name: '# public channel 2', icon: 'tag', isAdmin: false },
-  { id: 9, name: '# public channel 3', icon: 'tag', isAdmin: false },
-  { id: 10, name: '# public channel 4', icon: 'tag', isAdmin: false },
-  { id: 11, name: '# public channel 5', icon: 'tag', isAdmin: false }
+  { id: 1, name: '# general', icon: 'tag', isAdmin: true, isPrivate: false },
+  { id: 2, name: '# random', icon: 'tag', isAdmin: false, isPrivate: false },
+  { id: 3, name: '# dev', icon: 'tag', isAdmin: true, isPrivate: false },
+  { id: 4, name: '# another public channel', icon: 'tag', isAdmin: false, isPrivate: false },
+  { id: 5, name: '# design', icon: 'tag', isAdmin: false, isPrivate: false },
+  { id: 6, name: '# test kanal', icon: 'tag', isAdmin: false, isPrivate: false },
+  { id: 7, name: '# public channel 1', icon: 'tag', isAdmin: false, isPrivate: false },
+  { id: 8, name: '# public channel 2', icon: 'tag', isAdmin: false, isPrivate: false },
+  { id: 9, name: '# public channel 3', icon: 'tag', isAdmin: false, isPrivate: false },
+  { id: 10, name: '# public channel 4', icon: 'tag', isAdmin: false, isPrivate: false },
+  { id: 11, name: '# public channel 5', icon: 'tag', isAdmin: false, isPrivate: false }
 ]
 
-// 🔹 prop z parentu
 const props = defineProps<{
-  showPublic: boolean
+  showPublicAll: boolean
+  activeType: 'public' | 'private'
 }>()
 
-// 🔹 computed reaktívny výber medzi my/public
-const channels = computed<Channel[]>(() =>
-  props.showPublic ? publicChannels : myChannels.value
-)
+const filteredChannels = computed(() => {
+  if (props.showPublicAll) return publicChannels
+  return myChannels.value.filter(ch => props.activeType === 'public' ? !ch.isPrivate : ch.isPrivate)
+})
 </script>
 
 <style lang="scss" scoped>

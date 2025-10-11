@@ -18,12 +18,16 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
 
-const activeType = ref('public')
+const activeType = ref<'public' | 'private'>('public')
 
-const setType = (type) => {
+const emit = defineEmits<{
+  (e: 'type-change', type: 'public' | 'private'): void
+}>()
+
+const setType = (type: 'public' | 'private') => {
   activeType.value = type
   console.log('Selected type:', type)
-  // emit('type-change', type)  // neskôr pre prepojenie s listom
+  emit('type-change', type)
 }
 </script>
 

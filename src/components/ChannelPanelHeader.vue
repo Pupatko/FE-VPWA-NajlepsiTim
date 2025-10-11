@@ -37,6 +37,7 @@ const props = defineProps({
 const router = useRouter()
 const emit = defineEmits(['togglePublic'])
 
+const togglePublic = () => emit('togglePublic')
 const addChannel = () => {
   console.log('Add channel clicked')
   router.push('/create-channel')
