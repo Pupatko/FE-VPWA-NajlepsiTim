@@ -27,13 +27,6 @@
             @click="$router.push('/settings')"
             aria-label="Settings"
           />
-          <q-btn
-            flat
-            round
-            icon="account_circle"
-            @click="$router.push('/login')"
-            aria-label="User"
-          />
         </div>
 
       </q-toolbar>
