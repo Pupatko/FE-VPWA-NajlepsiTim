@@ -1,1 +1,32 @@
-// app global css in SCSS form
+// app global css in SCSS format
+.text-online-status {
+  color: #10B981 !important;
+}
+
+.bg-online-status {
+  background: #10B981 !important;
+}
+
+.text-dnd-status {
+  color: #EF4444 !important;
+}
+
+.bg-dnd-status {
+  background: #EF4444 !important;
+}
+
+.text-offline-status {
+  color: #6B7280 !important;
+}
+
+.bg-offline-status {
+  background: #6B7280 !important;
+}
+
+.text-away-status {
+  color: #F59E0B !important;
+}
+
+.bg-away-status {
+  background: #F59E0B !important;
+}

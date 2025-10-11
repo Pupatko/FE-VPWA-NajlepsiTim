@@ -8,10 +8,15 @@
   </div>
 </template>
 
-<script setup>
+<script lang="ts" setup>
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
 const addChannel = () => {
   console.log('Add channel clicked')
-  // sem neskôr pridáš emit alebo otvoríš dialóg
+  // Navigate to create channel page
+  router.push('/create-channel')
 }
 </script>
 

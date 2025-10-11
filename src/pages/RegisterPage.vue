@@ -1,31 +1,29 @@
 <template>
-
   <q-page class="register-page flex flex-center">
     <q-card class="register-card">
 
-      <q-card-section>
-        <div class="text-h4 text-center main-title">BondraGer</div>
-        <div class="text-subtitle2 text-center sub-title">Register your account</div>
+      <q-card-section class="text-center">
+        <div class="text-h4 main-title">BondraGer</div>
+        <div class="text-subtitle2 sub-title">Register your account</div>
       </q-card-section>
 
       <q-card-section>
-        <!-- first name , last name -->
-        <div class="row q-gutter-md q-mb-md">
-          <q-input
-            v-model="firstName"
-            label="First Name"
-            outlined
-            class="col"
-            :rules="[val => !!val || 'First name is required']"
-          />
-
-          <q-input
-            v-model="lastName"
-            label="Last Name"
-            outlined
-            class="col"
-            :rules="[val => !!val || 'Last name is required']"
-          />
+        <!-- first name, last name -->
+        <div class="row q-col-gutter-md q-mb-md">
+          <div class="col">
+            <q-input
+              v-model="firstName"
+              label="First Name"
+              outlined
+            />
+          </div>
+          <div class="col">
+            <q-input
+              v-model="lastName"
+              label="Last Name"
+              outlined
+            />
+          </div>
         </div>
 
         <!-- nickname -->
@@ -34,7 +32,6 @@
           label="Nickname"
           outlined
           class="q-mb-md"
-          :rules="[val => !!val || 'Nickname is required']"
         />
 
         <!-- email -->
@@ -44,51 +41,47 @@
           type="email"
           outlined
           class="q-mb-md"
-          suffix="@gmail.com"  # deleteme
-          :rules="[val => !!val || 'Email is required']"
         />
 
-        <!-- pass -->
+        <!-- password -->
         <q-input
           v-model="password"
           label="Password"
           type="password"
           outlined
           class="q-mb-md"
-          :rules="[val => !!val || 'Password is required']"
         />
 
-        <!-- confirm pass -->
+        <!-- confirm password -->
         <q-input
           v-model="confirmPassword"
           label="Confirm Password"
           type="password"
           outlined
           class="q-mb-lg"
-          :rules="[
-            val => !!val || 'Please confirm password',
-            val => val === password || 'Passwords do not match'
-          ]"
         />
 
         <q-btn
           label="Register Account"
           color="primary"
-          class="full-width register-btn q-mb-md"
+          unelevated
+          class="full-width q-mb-md"
           size="lg"
+          @click="handleRegister"
         />
 
-        <!-- "or" -->
-        <div class="text-center q-mb-md">
-          <q-separator class="q-mb-md" />
-          <span class="text-caption divider-text">or</span>
+        <!-- divider -->
+        <div class="row items-center q-my-md">
+          <q-separator class="col" />
+          <div class="text-caption divider-text q-px-md">or</div>
+          <q-separator class="col" />
         </div>
 
         <q-btn
           label="Log In"
           color="secondary"
           outline
-          class="full-width login-btn"
+          class="full-width"
           size="lg"
           to="/login"
         />
@@ -110,8 +103,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 
-// Form fields
 const firstName = ref('')
 const lastName = ref('')
 const nickName = ref('')
@@ -119,80 +113,53 @@ const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 
-// Registration Logic
+const router = useRouter()
+const $q = useQuasar()
+
 const handleRegister = () => {
-  const userData = {
-    firstName: firstName.value,
-    lastName: lastName.value,
-    nickName: nickName.value,
-    email: email.value,
-    password: password.value
-  }
-  console.log('Register data:', userData)
-  // API call to register the user would go here
+  // TODO: Replace with real API call
+  router.push('/channel')
 }
 </script>
 
 <style lang="scss" scoped>
-  .register-page {
-    background-color: $chat-bg;
-    min-height: 100vh;
-    padding: 2rem;
-  }
+.register-page {
+  background-color: $chat-bg;
+  min-height: 100vh;
+}
 
-  .register-card {
-    width: 450px;
-    background: $message-area-bg;
-    border-radius: $border-radius * 2;
-    box-shadow: $shadow-medium;
-  }
+.register-card {
+  width: 100%;
+  max-width: 450px;
+  background-color: $message-area-bg;
+  border-radius: $border-radius * 2;
+  box-shadow: $shadow-medium;
+}
 
-  .main-title {
-    color: $primary;
-    margin-bottom: 8px;
-  }
+.main-title {
+  color: $primary;
+  font-weight: 700;
+}
 
-  .sub-title {
-    color: $text-secondary;
-  }
+.sub-title {
+  color: $text-secondary;
+}
 
-  .register-btn {
-    height: 48px;
-    border-radius: $border-radius;
-    font-weight: 600;
-  }
+.divider-text {
+  color: $text-muted;
+}
 
-  .login-btn {
-    height: 48px;
-    border-radius: $border-radius;
-    font-weight: 600;
-    border: 2px solid $secondary;
-  }
+.login-text {
+  color: $text-secondary;
+}
 
-  .login-btn:hover {
-    background-color: $secondary;
-    color: white;
-  }
-
-  .divider-text {
-    color: $text-muted;
-    background-color: $message-area-bg;
-    padding: 0 12px;
-    position: relative;
-    top: -12px;
-  }
-
-  .login-text {
-    color: $text-muted;
-  }
-
-  .login-link {
-    color: $primary;
-    text-decoration: none;
-    font-weight: 500;
-  }
-
-  .login-link:hover {
+.login-link {
+  color: $primary;
+  text-decoration: none;
+  font-weight: 500;
+  
+  &:hover {
     text-decoration: underline;
   }
+}
 </style>

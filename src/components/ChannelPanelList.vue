@@ -4,24 +4,26 @@
       <ChannelPanelItem
         v-for="ch in channels"
         :key="ch.id"
+        :channel-id="ch.id"
         :name="ch.name"
         :icon="ch.icon"
+        :is-admin="ch.isAdmin"
       />
     </q-list>
   </q-scroll-area>
 </template>
 
-<script setup>
+<script lang="ts" setup>
 import { ref } from 'vue'
 import ChannelPanelItem from './ChannelPanelItem.vue'
 
-// dal som temporary data, neskôr to bude fetchované z backendu
+// Temporary data - later fetch from backend with user permissions
 const channels = ref([
-  { id: 1, name: '# general', icon: 'tag' },
-  { id: 2, name: '# random', icon: 'tag' },
-  { id: 3, name: '# dev', icon: 'tag' },
-  { id: 4, name: '# design', icon: 'tag' },
-  { id: 5, name: '# test kanal', icon: 'tag' }
+  { id: 1, name: '# general', icon: 'tag', isAdmin: true },
+  { id: 2, name: '# random', icon: 'tag', isAdmin: false },
+  { id: 3, name: '# dev', icon: 'tag', isAdmin: true },
+  { id: 4, name: '# design', icon: 'tag', isAdmin: false },
+  { id: 5, name: '# test kanal', icon: 'tag', isAdmin: false }
 ])
 </script>
 

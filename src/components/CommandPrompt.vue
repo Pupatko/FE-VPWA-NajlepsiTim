@@ -1,23 +1,30 @@
 <template>
-  <div class="command-prompt">
-    <div class="terminal-output" ref="outputArea">
-      <div v-for="(line, index) in outputLines" :key="index" class="output-line">
-        {{ line }}
+  <q-card class="command-prompt" flat bordered>
+    <!-- Terminal Output -->
+    <q-scroll-area class="terminal-output">
+      <div class="q-pa-md">
+        <div v-for="(line, index) in outputLines" :key="index" class="output-line">
+          {{ line }}
+        </div>
       </div>
-    </div>
+    </q-scroll-area>
 
-    <div class="command-line">
+    <!-- Command Line Input -->
+    <div class="command-line row items-center no-wrap">
       <span class="prompt">{{ promptSymbol }}</span>
-      <input 
-        ref="inputField"
+      <q-input
         v-model="currentInput"
+        borderless
+        dense
+        dark
         class="command-input"
-        @keyup.enter="handleCommand"
         placeholder="enter command or message..."
+        @keyup.enter="handleCommand"
+        input-class="text-white"
         spellcheck="false"
       />
     </div>
-  </div>
+  </q-card>
 </template>
 
 <script setup lang="ts">
@@ -56,22 +63,18 @@ const processCommand = (input: string) => {
       showHelp()
       break
     case '/join':
-      // TODO: logic to join or create a channel with optional privacy
       outputLines.value.push(`TODO: join channel logic: ${args.join(' ')}`)
       break
     case '/quit':
-      // TODO: logic to delete the current channel (admin only)
       outputLines.value.push('TODO: delete channel logic')
       break
     case '/cancel':
-      // TODO: logic to leave the current channel
       outputLines.value.push('TODO: leave channel logic')
       break
     case '/invite':
       if (args.length < 1) {
         outputLines.value.push('Usage: /invite <nickname>')
       } else {
-        // TODO: logic to invite a user to the channel
         outputLines.value.push(`TODO: invite user logic for: ${args[0]}`)
       }
       break
@@ -79,7 +82,6 @@ const processCommand = (input: string) => {
       if (args.length < 1) {
         outputLines.value.push('Usage: /revoke <nickname>')
       } else {
-        // TODO: logic to revoke a user from the private channel
         outputLines.value.push(`TODO: revoke user logic for: ${args[0]}`)
       }
       break
@@ -87,12 +89,10 @@ const processCommand = (input: string) => {
       if (args.length < 1) {
         outputLines.value.push('Usage: /kick <nickname>')
       } else {
-        // TODO: logic to kick a user from the channel
         outputLines.value.push(`TODO: kick user logic for: ${args[0]}`)
       }
       break
     case '/list':
-      // TODO: logic to display channel members
       outputLines.value.push('TODO: list channel members logic')
       break
     default:
@@ -122,53 +122,51 @@ const sendMessage = (message: string) => {
 .command-prompt {
   height: 200px;
   background: $command-line-bg;
-  color: $text-inverse;
-  font-family: monospace;
-  border: 1px solid $border-light;
   display: flex;
   flex-direction: column;
 }
 
 .terminal-output {
   flex: 1;
-  padding: 12px;
-  overflow-y: auto;
-  background: $command-line-bg;
+  color: $text-inverse;
+  font-family: monospace;
+  font-size: 13px;
 }
 
 .output-line {
   margin: 3px 0;
   line-height: 1.3;
-  font-size: 13px;
 }
 
 .command-line {
-  display: flex;
-  align-items: center;
   padding: 12px;
-  border-top: 1px solid rgba($border-light, 0.5);
+  border-top: 1px solid rgba($border-light, 0.3);
   background: $command-line-bg;
 }
 
 .prompt {
-  margin-right: 8px;
   color: $positive;
   font-weight: bold;
   font-size: 14px;
+  margin-right: 8px;
+  font-family: monospace;
 }
 
 .command-input {
   flex: 1;
-  background: transparent;
-  border: none;
-  color: $text-inverse;
-  font-family: inherit;
-  outline: none;
+  font-family: monospace;
   font-size: 14px;
-  padding: 4px 0;
-}
-
-.command-input::placeholder {
-  color: $text-muted;
+  
+  :deep(.q-field__control) {
+    color: $text-inverse;
+  }
+  
+  :deep(.q-field__native) {
+    color: $text-inverse;
+  }
+  
+  :deep(::placeholder) {
+    color: $text-muted;
+  }
 }
 </style>
