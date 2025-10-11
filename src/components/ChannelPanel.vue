@@ -1,17 +1,24 @@
 <template>
   <div class="column fit channel-panel">
-    <channel-panel-header />
+    <channel-panel-header :show-public="showPublic" @toggle-public="togglePublic" />
     <channel-panel-type />
     <div class="col-grow">
-      <channel-panel-list />
+      <channel-panel-list :show-public="showPublic" />
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
+import { ref } from 'vue'
 import ChannelPanelHeader from './ChannelPanelHeader.vue'
 import ChannelPanelType from './ChannelPanelType.vue'
 import ChannelPanelList from './ChannelPanelList.vue'
+
+const showPublic = ref(false)
+
+const togglePublic = () => {
+  showPublic.value = !showPublic.value
+}
 </script>
 
 <style lang="scss" scoped>
