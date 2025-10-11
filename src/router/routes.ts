@@ -15,6 +15,12 @@ const routes: RouteRecordRaw[] = [
   },
 
   {
+    path: '/settings',
+    component: () => import('layouts/JustPageLayout.vue'),
+    children: [{path: '', component: () => import('pages/SettingsPage.vue') }],
+  },
+
+  {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [{ path: '', component: () => import('pages/ChatPage.vue') }],
