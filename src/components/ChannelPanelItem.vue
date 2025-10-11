@@ -37,7 +37,7 @@
   </q-item>
 </template>
 
-<script setup>
+<script lang="ts" setup>
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 

@@ -8,7 +8,7 @@
   </div>
 </template>
 
-<script setup>
+<script lang="ts" setup>
 import ChannelPanelHeader from './ChannelPanelHeader.vue'
 import ChannelPanelType from './ChannelPanelType.vue'
 import ChannelPanelList from './ChannelPanelList.vue'
