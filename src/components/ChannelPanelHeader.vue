@@ -44,7 +44,12 @@ const addChannel = () => {
 }
 
 const viewAll = () => {
-  emit('togglePublic')
+  if (!props.showPublic) {
+    // ak nie sme v public mode, otvor public channels stránku
+    router.push('/public-channels')
+  } else {
+    emit('togglePublic') // ak sme už v public view, len sa vráť späť do private listu
+  }
 }
 </script>
 
