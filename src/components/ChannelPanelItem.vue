@@ -101,6 +101,8 @@ const deleteChannel = () => {
 <style lang="scss" scoped>
 .channel-item {
   color: $text-inverse;
+  background-color: $sidebar-item-bg;
+  border-radius: 16px;
   
   &:hover {
     background-color: $channel-hover;
@@ -121,7 +123,10 @@ const deleteChannel = () => {
 .action-buttons {
   opacity: 0;
   transition: opacity 0.2s;
-  display: flex;
+  display: flex;           
+  flex-direction: row;      
+  align-items: center;      
+  justify-content: flex-end;
   gap: 4px;
 }
 </style>

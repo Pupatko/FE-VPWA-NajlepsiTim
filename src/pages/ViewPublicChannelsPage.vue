@@ -79,7 +79,7 @@ const loadMoreChannels = (index: number, done: (stop?: boolean) => void) => {
   setTimeout(() => {
     
     const newChannels: Channel[] = []
-
+    //temporary - potom pojdu existujuce z DB
     for (let i = 0; i < 5; i++) {
       const id = publicChannels.value.length + 1
       newChannels.push({
