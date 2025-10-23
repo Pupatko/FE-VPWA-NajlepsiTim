@@ -18,39 +18,26 @@
       class="text-subtitle2 text-blue-4 cursor-pointer q-mt-xs hover:underline"
       @click="viewAll"
     >
-      {{ props.showPublic ? 'Back to my channels' : 'View all public channels' }}
+      {{ 'View all public channels' }}
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { useRouter } from 'vue-router'
-import { defineEmits } from 'vue'
-
-const props = defineProps({
-  showPublic: {
-    type: Boolean,
-    required: true
-  }
-})
 
 const router = useRouter()
-const emit = defineEmits(['togglePublic'])
 
-const togglePublic = () => emit('togglePublic')
 const addChannel = () => {
   console.log('Add channel clicked')
   router.push('/create-channel')
 }
 
 const viewAll = () => {
-  if (!props.showPublic) {
-    // ak nie sme v public mode, otvor public channels stránku
-    router.push('/public-channels')
-  } else {
-    emit('togglePublic') // ak sme už v public view, len sa vráť späť do private listu
-  }
+  // ak nie sme v public mode, otvor public channels stránku
+  router.push('/public-channels')
 }
+
 </script>
 
 <style lang="scss" scoped>
