@@ -1,6 +1,5 @@
 <template>
   <q-card class="command-prompt" flat bordered>
-    <!-- Terminal Output -->
     <q-scroll-area class="terminal-output">
       <div class="q-pa-md">
         <div v-for="(line, index) in outputLines" :key="index" class="output-line">
@@ -9,7 +8,6 @@
       </div>
     </q-scroll-area>
 
-    <!-- Command Line Input -->
     <div class="command-line row items-center no-wrap">
       <span class="prompt">{{ promptSymbol }}</span>
       <q-input
@@ -23,6 +21,16 @@
         input-class="text-white"
         spellcheck="false"
       />
+      <q-btn
+        flat
+        dense
+        round
+        icon="expand_more"
+        color="white"
+        @click="$emit('toggle-visibility')"
+      >
+        <q-tooltip>{{ 'Hide terminal' }}</q-tooltip>
+      </q-btn>
     </div>
   </q-card>
 </template>
@@ -34,8 +42,10 @@ interface Props {
   promptSymbol?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  promptSymbol: '> '
+const emit = defineEmits(['toggle-visibility'])
+
+const props = withDefaults(defineProps<{ promptSymbol?: string}>(), {
+  promptSymbol: '> ',
 })
 
 const currentInput = ref('')
