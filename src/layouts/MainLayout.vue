@@ -42,13 +42,15 @@
       <ChannelPanel />
     </q-drawer>
 
-    <q-page-container class="custom-page-container">
+    <q-page-container class="custom-page-container" :class="{ expanded: isTerminalHidden }">
       <router-view />
     </q-page-container>
 
     <q-footer class="footer-container">
       <div class="message-input-wrapper">
         <MessageInput 
+          :cmd-visible="!isTerminalHidden"
+          @toggle-cmd="toggleTerminal"
           @send="handleSendMessage" 
           @typing="handleTyping" 
         />
@@ -57,8 +59,9 @@
         <!-- placeholder for typing indicator -->
       </div>
       
-      <div class="command-prompt-wrapper">
+      <div class="command-prompt-wrapper" :class="{ collapsed: isTerminalHidden }">
         <CommandPrompt 
+          @toggle-visibility="toggleTerminal"
           @send="handleSendMessage" 
           @command="handleCommand" 
         />
@@ -117,6 +120,11 @@ export default {
       // todo: broadcast typing status to other users via websocket
     }
 
+    const isTerminalHidden = ref(false)
+    const toggleTerminal = () => {
+      isTerminalHidden.value = !isTerminalHidden.value
+    }
+
     return {
       leftDrawerOpen,
       userStatus,
@@ -128,7 +136,9 @@ export default {
       handleChannelSelect,
       handleSendMessage,
       handleCommand,
-      handleTyping
+      handleTyping,
+      isTerminalHidden,
+      toggleTerminal
     }
   }
 }
@@ -144,6 +154,10 @@ export default {
   background-color: $chat-bg;
   color: $text-primary;
   padding-bottom: 180px;
+  
+  &.expanded {
+    flex: 1 1 auto; /* rozťahne sa na celú výšku */
+  }
 }
 
 .app-title {
@@ -175,5 +189,10 @@ export default {
 .command-prompt-wrapper {
   background-color: $command-line-bg;
   border-top: 1px solid $border-light;
+  
+  &.collapsed {
+    height: 0px;
+    overflow: hidden;
+  }
 }
 </style>
