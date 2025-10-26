@@ -24,7 +24,7 @@
             flat
             round
             icon="settings"
-            @click="$router.push('/settings')"
+            @click="Settings"
             aria-label="Settings"
           />
         </div>
@@ -72,6 +72,7 @@
 
 <script lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import CommandPrompt from '../components/CommandPrompt.vue'
 import ChannelPanel from '../components/ChannelPanel.vue'
 import MessageInput from '../components/MessageInput.vue'
@@ -125,6 +126,13 @@ export default {
       isTerminalHidden.value = !isTerminalHidden.value
     }
 
+    
+    const router = useRouter();
+
+    const Settings = () => {
+      router.push('/settings')
+    }
+
     return {
       leftDrawerOpen,
       userStatus,
@@ -133,6 +141,7 @@ export default {
       channels,
       // typingUsers,
       toggleLeftDrawer,
+      Settings,
       handleChannelSelect,
       handleSendMessage,
       handleCommand,

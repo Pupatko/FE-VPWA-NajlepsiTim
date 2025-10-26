@@ -1,4 +1,5 @@
 <template>
+  <!-- simple layout for login and register pages -->
   <q-layout view="hHh lpR fFf">
     <q-page-container>
       <router-view />
@@ -8,6 +9,3 @@
 
 <script setup lang="ts">
 </script>
-
-<style scoped>
-</style>
