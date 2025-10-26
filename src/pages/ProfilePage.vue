@@ -33,14 +33,6 @@
         />
       </q-card-section>
     </q-card>
-        <q-btn
-        flat
-        color="primary"
-        label="Login"
-        icon="login"
-        @click="goLogin"
-        class="full-width q-mb-sm"
-    />
   </q-page>
 </template>
 
@@ -58,10 +50,6 @@ const logout = () => {
 
 const goBack = () => {
   router.back()
-}
-
-const goLogin = () => {
-  router.push('/login')
 }
 
 </script>

@@ -90,28 +90,6 @@
           </q-card-section>
         </q-card>
 
-        <!-- Logout Card -->
-        <q-card flat bordered class="settings-card q-mb-lg logout-card">
-          <q-card-section>
-            <div class="text-h6 q-mb-sm">
-              <q-icon name="logout" color="negative" class="q-mr-sm" />
-              Logout
-            </div>
-            <div class="text-caption text-grey-7 q-mb-md">
-              Sign out of your account
-            </div>
-
-            <q-btn
-              label="Logout"
-              icon="logout"
-              color="negative"
-              outline
-              @click="handleLogout"
-              class="full-width"
-            />
-          </q-card-section>
-        </q-card>
-
         <!-- Save Button -->
         <div class="row justify-end q-mt-lg">
           <q-btn
@@ -205,10 +183,6 @@ const saveSettings = () => {
   })
 }
 
-const handleLogout = () => {
-    // TODO: logout logic
-  router.replace('/login')
-}
 </script>
 
 <style lang="scss" scoped>
