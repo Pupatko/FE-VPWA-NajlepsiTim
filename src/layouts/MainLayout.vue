@@ -19,6 +19,16 @@
         </q-toolbar-title>
 
         <!-- right side -->
+          <div class="q-gutter-x-md">
+            <q-btn
+              flat
+              round
+              icon="account_circle"
+              @click="Profile"
+              aria-label="Profile"
+            />
+          </div>
+
         <div class="q-gutter-x-md">
           <q-btn
             flat
@@ -133,6 +143,10 @@ export default {
       router.push('/settings')
     }
 
+    const Profile = () => {
+      router.push('/profile')
+    }
+
     return {
       leftDrawerOpen,
       userStatus,
@@ -142,6 +156,7 @@ export default {
       // typingUsers,
       toggleLeftDrawer,
       Settings,
+      Profile,
       handleChannelSelect,
       handleSendMessage,
       handleCommand,

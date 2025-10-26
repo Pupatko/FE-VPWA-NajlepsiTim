@@ -27,7 +27,7 @@
         round
         icon="expand_more"
         color="white"
-        @click="$emit('toggle-visibility')"
+        @click="toggleVisibility"
       >
         <q-tooltip>{{ 'Hide terminal' }}</q-tooltip>
       </q-btn>
@@ -125,6 +125,10 @@ const showHelp = () => {
 
 const sendMessage = (message: string) => {
   outputLines.value.push(`sending message: ${message}`)
+}
+
+const toggleVisibility = () => {
+  emit('toggle-visibility', true)
 }
 </script>
 
