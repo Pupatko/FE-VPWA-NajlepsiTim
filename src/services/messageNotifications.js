@@ -1,23 +1,37 @@
-import { useNotifications } from '../composables/useNotifications'
+// src/services/messageNotifications.js
 
 export class MessageNotificationService {
   constructor() {
-    this.notifications = useNotifications()
+    this.notifications = null
     this.initialized = false
   }
   
-  // initialize service once on app start
-  async init() {
+  // initialize service with quasar instance
+  init($q) {
     if (this.initialized) return
     
-    // automatically request permission
-    await this.notifications.checkAndRequestPermission()
+    // store quasar instance
+    this.$q = $q
+    
+    // request browser notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+    
     this.initialized = true
   }
   
   // load user settings from localStorage
   loadSettings() {
-    return this.notifications.getNotificationSettings()
+    const saved = localStorage.getItem('notificationSettings')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch (e) {
+        return { type: 'all', showPreview: true }
+      }
+    }
+    return { type: 'all', showPreview: true }
   }
   
   // check if user should receive notification
@@ -56,14 +70,35 @@ export class MessageNotificationService {
       ? `${message.author}: ${message.content}`
       : 'You have a new message'
     
-    this.notifications.showNotification(title, {
-      body,
-      icon: '/icons/icon-128x128.png',
-      tag: `message-${channelName}`,
-      onClick: () => {
-        console.log('notification clicked for channel:', channelName)
+    // check if app is visible using quasar instance
+    if (this.$q && this.$q.appVisible) {
+      // use quasar notify
+      this.$q.notify({
+        message: title,
+        caption: body,
+        icon: 'notifications',
+        color: 'primary',
+        position: 'top-right',
+        timeout: 3000,
+        actions: [
+          { label: 'Dismiss', color: 'white' }
+        ]
+      })
+    } else {
+      // use browser notification
+      if (Notification.permission === 'granted') {
+        const notification = new Notification(title, {
+          body,
+          icon: '/icons/icon-128x128.png',
+          tag: `message-${channelName}`
+        })
+        
+        notification.onclick = () => {
+          window.focus()
+          notification.close()
+        }
       }
-    })
+    }
   }
 }
 

@@ -26,13 +26,14 @@
     </div>
   </q-page>
 </template>
-
 <script lang="ts" setup>
 import { ref, onMounted, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import MessageItem from '../components/MessageItem.vue'
 import TypingIndicator from '../components/TypingIndicator.vue'
 import { messageNotifications } from '../services/messageNotifications'
 
+const $q = useQuasar()
 const currentUser = ref('me')
 const currentChannel = ref('general')
 const typingUsers = ref([])
@@ -57,9 +58,33 @@ const messages = ref([
   }
 ])
 
-// initialize notification service
+// test function - call from console with window.testNotification()
+window.testNotification = () => {
+  const testMessage = {
+    id: messages.value.length + 1,
+    author: 'testuser',
+    content: 'Hey @me this is a test notification!',
+    timestamp: new Date()
+  }
+  messages.value.push(testMessage)
+  console.log('test message added:', testMessage)
+}
+
+// test function for notification without mention
+window.testNoMention = () => {
+  const testMessage = {
+    id: messages.value.length + 1,
+    author: 'testuser',
+    content: 'This is a message without mention',
+    timestamp: new Date()
+  }
+  messages.value.push(testMessage)
+  console.log('test message without mention added:', testMessage)
+}
+
+// initialize notification service with $q instance
 onMounted(async () => {
-  await messageNotifications.init()
+  messageNotifications.init($q)  // predaj $q sem!
   
   // simulate new message after 5 seconds for testing
   setTimeout(() => {
@@ -70,17 +95,10 @@ onMounted(async () => {
       timestamp: new Date()
     }
     messages.value.push(newMessage)
-    
-    // show notification
-    messageNotifications.notifyNewMessage(
-      newMessage,
-      currentChannel.value,
-      currentUser.value
-    )
   }, 5000)
 })
 
-// watch for new messages when using websocket or api
+// watch for new messages
 watch(() => messages.value.length, (newLength, oldLength) => {
   if (newLength > oldLength) {
     const latestMessage = messages.value[messages.value.length - 1]
