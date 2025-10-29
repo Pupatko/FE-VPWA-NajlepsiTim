@@ -9,20 +9,37 @@
       @keyup="handleTyping"
       bg-color="white"
     >
-      <!-- sipka na zapnutie cmd -->
-      <template v-slot:prepend v-if="!cmdVisible">
-        <q-btn
-          flat
-          round
-          dense
-          icon="arrow_upward"
-          color="primary"
-          class="toggle-cmd-btn"
-          @click="toggleCmd"
-        />
-        <q-tooltip>{{'Show terminal'}}</q-tooltip>
+      <!-- 🔹 PREPEND: CMD tlačidlo (len ak cmd nie je viditeľný) + profil -->
+      <template v-slot:prepend>
+        <div class="flex items-center q-gutter-sm">
+          <template v-if="!cmdVisible">
+            <q-btn
+              flat
+              round
+              dense
+              icon="arrow_upward"
+              color="primary"
+              class="toggle-cmd-btn"
+              @click="toggleCmd"
+              >
+              <q-tooltip>Show terminal</q-tooltip>
+            </q-btn>
+          </template>
+
+          <q-btn
+            flat
+            round
+            dense
+            icon="account_circle"
+            color="primary"
+            @click="toggleMembers"
+           >
+            <q-tooltip>Show channel members</q-tooltip>
+          </q-btn>
+        </div>
       </template>
 
+      <!-- 🔹 APPEND: Send tlačidlo -->
       <template v-slot:append>
         <q-btn 
           flat 
@@ -42,7 +59,7 @@
 import { ref, watch } from 'vue'
 
 export default {
-  emits: ['send', 'typing', 'toggle-cmd'],
+  emits: ['send', 'typing', 'toggle-cmd', 'toggle-members'],
   props: {
     cmdVisible: { type: Boolean, default: false }
   },
@@ -71,11 +88,16 @@ export default {
       emit('toggle-cmd', true)
     }
 
+    const toggleMembers = () => {
+      emit('toggle-members', true)
+    }
+
     return {
       messageText,
       sendMessage,
       handleTyping,
-      toggleCmd
+      toggleCmd,
+      toggleMembers
     }
   }
 }

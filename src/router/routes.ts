@@ -26,7 +26,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'create-channel', component: () => import('pages/CreateChannelPage.vue') },
       { path: 'settings', component: () => import('pages/SettingsPage.vue') },
       { path: 'profile', component: () => import('pages/ProfilePage.vue') },
-      { path: 'public-channels', component: () => import('pages/ViewPublicChannelsPage.vue') }
+      { path: 'public-channels', component: () => import('pages/ViewPublicChannelsPage.vue') },
+      { path: 'list', component: () => import('pages/MembersPage.vue') }
     ],
   },
 

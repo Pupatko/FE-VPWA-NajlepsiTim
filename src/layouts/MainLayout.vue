@@ -61,6 +61,7 @@
         <MessageInput 
           :cmd-visible="!isTerminalHidden"
           @toggle-cmd="toggleTerminal"
+          @toggle-members="toggleMembers"
           @send="handleSendMessage" 
           @typing="handleTyping" 
         />
@@ -136,6 +137,10 @@ export default {
       isTerminalHidden.value = !isTerminalHidden.value
     }
 
+    const toggleMembers = () => {
+      router.push('/list')
+    }
+
     
     const router = useRouter();
 
@@ -162,7 +167,8 @@ export default {
       handleCommand,
       handleTyping,
       isTerminalHidden,
-      toggleTerminal
+      toggleTerminal,
+      toggleMembers
     }
   }
 }
