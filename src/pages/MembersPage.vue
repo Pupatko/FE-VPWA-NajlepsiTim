@@ -53,7 +53,7 @@ interface Member {
   id: number
   name: string
   avatar: string
-  status: 'online' | 'offline' | 'away'
+  status: 'online' | 'offline' | 'dnd'
 }
 
 const members = ref<Member[]>([
@@ -67,7 +67,7 @@ const members = ref<Member[]>([
     id: 2,
     name: 'Jane Smith',
     avatar: 'https://cdn.quasar.dev/img/avatar2.jpg',
-    status: 'away'
+    status: 'dnd'
   },
   {
     id: 3,
