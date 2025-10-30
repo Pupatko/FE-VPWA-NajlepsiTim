@@ -1,7 +1,6 @@
 <template>
   <q-page class="chat-page">
     <div class="messages-area">
-      
       <q-infinite-scroll @load="onLoad" reverse>
         <template v-slot:loading>
           <div class="row justify-center q-my-md">
@@ -9,7 +8,6 @@
           </div>
         </template>
 
-        <!-- messages list -->
         <MessageItem
           v-for="message in messages"
           :key="message.id"
@@ -18,16 +16,13 @@
         />
       </q-infinite-scroll>
 
-      <!-- typing indicator -->
-      <TypingIndicator 
-        v-if="typingUsers.length > 0"
-        :users="typingUsers"
-      />
+      <TypingIndicator :users="typingUsers" />
     </div>
   </q-page>
 </template>
+
 <script lang="ts" setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import MessageItem from '../components/MessageItem.vue'
 import TypingIndicator from '../components/TypingIndicator.vue'
@@ -58,35 +53,26 @@ const messages = ref([
   }
 ])
 
-// test function - call from console with window.testNotification()
-window.testNotification = () => {
-  const testMessage = {
-    id: messages.value.length + 1,
-    author: 'testuser',
-    content: 'Hey @me this is a test notification!',
-    timestamp: new Date()
-  }
-  messages.value.push(testMessage)
-  console.log('test message added:', testMessage)
-}
+const allUsers = ['Ed', 'Alice', 'Bob', 'Charlie', 'Dana']
+let simulationInterval = null
 
-// test function for notification without mention
-window.testNoMention = () => {
-  const testMessage = {
-    id: messages.value.length + 1,
-    author: 'testuser',
-    content: 'This is a message without mention',
-    timestamp: new Date()
-  }
-  messages.value.push(testMessage)
-  console.log('test message without mention added:', testMessage)
-}
-
-// initialize notification service with $q instance
-onMounted(async () => {
-  messageNotifications.init($q)  // predaj $q sem!
+const simulateRandomTyping = () => {
+  const randomCount = Math.floor(Math.random() * 3)
   
-  // simulate new message after 5 seconds for testing
+  if (randomCount === 0) {
+    typingUsers.value = []
+  } else {
+    const shuffled = [...allUsers].sort(() => 0.5 - Math.random())
+    typingUsers.value = shuffled.slice(0, randomCount)
+  }
+}
+
+onMounted(async () => {
+  messageNotifications.init($q)
+  
+  simulateRandomTyping()
+  simulationInterval = setInterval(simulateRandomTyping, 10000)
+  
   setTimeout(() => {
     const newMessage = {
       id: messages.value.length + 1,
@@ -98,12 +84,16 @@ onMounted(async () => {
   }, 5000)
 })
 
-// watch for new messages
+onUnmounted(() => {
+  if (simulationInterval) {
+    clearInterval(simulationInterval)
+  }
+})
+
 watch(() => messages.value.length, (newLength, oldLength) => {
   if (newLength > oldLength) {
     const latestMessage = messages.value[messages.value.length - 1]
     
-    // show notification only if message is not from current user
     if (latestMessage.author !== currentUser.value) {
       messageNotifications.notifyNewMessage(
         latestMessage,
@@ -114,10 +104,8 @@ watch(() => messages.value.length, (newLength, oldLength) => {
   }
 })
 
-// load older messages for infinite scroll
 const onLoad = (index, done) => {
   setTimeout(() => {
-    // simulate loading older messages
     const olderMessages = [
       {
         id: messages.value.length + 1,
