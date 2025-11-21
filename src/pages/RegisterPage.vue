@@ -105,6 +105,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import store from 'src/store'
 
 const firstName = ref('')
 const lastName = ref('')
@@ -116,9 +117,26 @@ const confirmPassword = ref('')
 const router = useRouter()
 const $q = useQuasar()
 
-const handleRegister = () => {
-  // TODO: Replace with real API call
-  router.push('/channel')
+const handleRegister = async () => {
+  if (password.value !== confirmPassword.value) {
+    $q.notify({ type: 'negative', message: 'Passwords do not match' })
+    return
+  }
+
+  try {
+    const data = {
+      email: email.value,
+      password: password.value,
+      passwordConfirmation: confirmPassword.value
+    }
+
+    await store.dispatch('auth/register', data)
+
+    // on success, user is logged in by register action -> redirect
+    router.push('/channel')
+  } catch (err: any) {
+    $q.notify({ type: 'negative', message: err?.message || 'Registration failed' })
+  }
 }
 </script>
 

@@ -14,8 +14,9 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ChannelPanelItem from './ChannelPanelItem.vue'
+import api from 'src/api/axios'
 
 interface Channel {
   id: number
@@ -25,13 +26,32 @@ interface Channel {
   isPrivate: boolean
 }
 
-const myChannels = ref<Channel[]>([
-  { id: 1, name: '# general', icon: 'tag', isAdmin: true, isPrivate: false },
-  { id: 2, name: '# random', icon: 'tag', isAdmin: false, isPrivate: false },
-  { id: 3, name: '# dev', icon: 'tag', isAdmin: true, isPrivate: false },
-  { id: 4, name: '# design', icon: 'tag', isAdmin: false, isPrivate: false },
-  { id: 5, name: '# test kanal', icon: 'tag', isAdmin: false, isPrivate: true }
-])
+const myChannels = ref<Channel[]>([])
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/my-channels')
+
+    myChannels.value = data.map((ch: any) => ({
+      id: ch.id,
+      name: ch.name,
+      icon: 'tag',
+      isAdmin: ch.isAdmin,
+      isPrivate: ch.isPrivate,
+    }))
+  } catch (err) {
+    
+    // Fallback na lokalne demo kanaly ak user nie je prohlaseny
+    console.warn('Failed to load channels from /api/my-channels, using demo list', err)
+    myChannels.value = [
+      { id: 1, name: '# generic channel', icon: 'tag', isAdmin: true, isPrivate: false },
+      { id: 2, name: '# generic channel', icon: 'tag', isAdmin: false, isPrivate: false },
+      { id: 3, name: '# generic channel', icon: 'tag', isAdmin: true, isPrivate: false },
+      { id: 4, name: '# generic channel', icon: 'tag', isAdmin: false, isPrivate: false },
+      { id: 5, name: '# generic channel', icon: 'tag', isAdmin: false, isPrivate: true }
+    ]
+  }
+})
 
 
 const props = defineProps<{

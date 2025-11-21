@@ -39,12 +39,19 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import store from 'src/store'
 
 const router = useRouter()
 const $q = useQuasar()
 
-const logout = () => {
-  $q.notify({ message: "Logged out!", color: "negative" })
+const logout = async () => {
+  try {
+    await store.dispatch('auth/logout')
+  } catch {
+    // ignore
+  }
+
+  $q.notify({ message: 'Logged out!', color: 'negative' })
   router.push('/login')
 }
 
