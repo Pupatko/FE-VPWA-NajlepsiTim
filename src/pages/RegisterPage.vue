@@ -125,17 +125,18 @@ const handleRegister = async () => {
 
   try {
     const data = {
+      firstName: firstName.value,
+      lastName: lastName.value,
+      nickName: nickName.value,
       email: email.value,
       password: password.value,
-      passwordConfirmation: confirmPassword.value
     }
 
     await store.dispatch('auth/register', data)
 
-    // on success, user is logged in by register action -> redirect
     router.push('/channel')
   } catch (err: any) {
-    $q.notify({ type: 'negative', message: err?.message || 'Registration failed' })
+    $q.notify({ type: 'negative', message: err?.response?.data?.message || 'Registration failed' })
   }
 }
 </script>

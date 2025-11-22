@@ -46,7 +46,7 @@ const $q = useQuasar()
 
 const logout = async () => {
   try {
-    await store.dispatch('auth/logout')
+    await store.dispatch('/logout')
   } catch {
     // ignore
   }

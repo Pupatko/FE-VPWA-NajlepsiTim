@@ -45,16 +45,19 @@ const auth: Module<AuthState, any> = {
       return user
     },
 
-    async register ({ dispatch }, data: RegisterData) {
+    async register({ dispatch }, data) {
       await authService.register(data)
-      await dispatch('login', { email: data.email, password: (data as any).password, remember: false })
+
+      // auto login immediately
+      await dispatch('login', {
+        email: data.email,
+        password: data.password,
+        remember: false
+      })
     },
 
-    async logout ({ commit }) {
-      try {
-        await authService.logout()
-      } catch (e) {}
-
+    async logout({ commit }) {
+      await authService.logout()
       authManager.removeToken()
       commit('CLEAR_USER')
     }
