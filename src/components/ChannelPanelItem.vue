@@ -40,63 +40,88 @@
 <script lang="ts" setup>
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { inject } from 'vue'
+import api from 'src/api/axios'
 
 const router = useRouter()
 const $q = useQuasar()
 
+// inject the reactive channel list
+const myChannels = inject('myChannels') as any
+
 const props = defineProps({
   name: String,
   channelId: [String, Number],
-  icon: {
-    type: String,
-    default: 'tag'
-  },
-  isAdmin: {
-    type: Boolean,
-    default: false
-  }
+  icon: { type: String, default: 'tag' },
+  isAdmin: { type: Boolean, default: false }
 })
 
 const selectChannel = () => {
-  router.push('/channel')
-  console.log('Selected channel:', props.name)
+  router.push(`/channels/${props.channelId}`)
 }
 
+// --------------------- LEAVE CHANNEL ---------------------
 const leaveChannel = () => {
   $q.dialog({
     title: 'Leave Channel',
     message: `Are you sure you want to leave ${props.name}?`,
     cancel: true,
     persistent: true
-  }).onOk(() => {
-    // TODO: Call backend API to leave channel
-    console.log('Leaving channel:', props.name)
-    $q.notify({
-      type: 'info',
-      message: `Left channel ${props.name}`,
-      icon: 'exit_to_app'
-    })
+  }).onOk(async () => {
+    try {
+      await api.post('/leave', { channelId: props.channelId })
+
+      if (myChannels?.value) {
+        myChannels.value = myChannels.value.filter(
+          (ch: any) => ch.id !== props.channelId
+        )
+      }
+
+      $q.notify({
+        type: 'info',
+        message: `Left channel ${props.name}`,
+        icon: 'exit_to_app'
+      })
+    } catch (err) {
+      console.error(err)
+      $q.notify({ type: 'negative', message: 'Failed to leave channel', icon: 'error' })
+    }
   })
 }
 
+// --------------------- DELETE CHANNEL ---------------------
 const deleteChannel = () => {
+  if (!props.isAdmin) return
+
   $q.dialog({
     title: 'Delete Channel',
     message: `Are you sure you want to permanently delete ${props.name}? This action cannot be undone.`,
     cancel: true,
     persistent: true,
     color: 'negative'
-  }).onOk(() => {
-    // TODO: Call backend API to delete channel
-    console.log('Deleting channel:', props.name)
-    $q.notify({
-      type: 'negative',
-      message: `Channel ${props.name} deleted`,
-      icon: 'delete'
-    })
+  }).onOk(async () => {
+    try {
+      await api.post('/quit', { channelId: props.channelId })
+
+      if (myChannels?.value) {
+        myChannels.value = myChannels.value.filter(
+          (ch: any) => ch.id !== props.channelId
+        )
+      }
+
+      $q.notify({
+        type: 'negative',
+        message: `Channel ${props.name} deleted`,
+        icon: 'delete'
+      })
+    } catch (err) {
+      console.error(err)
+      $q.notify({ type: 'negative', message: 'Failed to delete channel', icon: 'error' })
+    }
   })
 }
 </script>
+
 
 <style lang="scss" scoped>
 .channel-item {

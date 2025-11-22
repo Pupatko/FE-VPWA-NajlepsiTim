@@ -78,6 +78,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import api from 'src/api/axios'
 
 export default {
   name: 'CreateChannelPage',
@@ -103,11 +104,11 @@ export default {
       }
     ]
 
-    const onSubmit = () => {
-      // TODO: Send to backend
-      console.log('Creating channel:', {
-        name: channelName.value,
-        type: channelType.value
+  const onSubmit = async () => {
+    try {
+      const res = await api.post('/join', {
+        channelName: channelName.value,
+        channelType: channelType.value,
       })
 
       $q.notify({
@@ -116,9 +117,16 @@ export default {
         icon: 'check_circle'
       })
 
-      // Navigate back to chat or to the new channel
       router.push('/')
+    } catch (err) {
+      console.error(err)
+      $q.notify({
+        type: 'negative',
+        message: 'Failed to create channel',
+        icon: 'error'
+      })
     }
+  }
 
     const onCancel = () => {
       router.push('/')

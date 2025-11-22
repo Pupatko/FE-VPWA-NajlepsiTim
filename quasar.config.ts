@@ -109,6 +109,7 @@ export default defineConfig((/* ctx */) => {
       plugins: [
         'AppVisibility',
         'Notify',
+        'Dialog'
       ],
     },
 

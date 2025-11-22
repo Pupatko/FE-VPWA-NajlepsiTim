@@ -14,7 +14,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue'
+import { provide, ref, computed, onMounted } from 'vue'
 import ChannelPanelItem from './ChannelPanelItem.vue'
 import api from 'src/api/axios'
 
@@ -27,6 +27,7 @@ interface Channel {
 }
 
 const myChannels = ref<Channel[]>([])
+provide('myChannels', myChannels)
 
 onMounted(async () => {
   try {
