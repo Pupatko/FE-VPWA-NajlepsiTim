@@ -59,8 +59,6 @@
     <q-footer class="footer-container">
       <div class="message-input-wrapper">
         <MessageInput 
-          :cmd-visible="!isTerminalHidden"
-          @toggle-cmd="toggleTerminal"
           @toggle-members="toggleMembers"
           @send="handleSendMessage" 
           @typing="handleTyping" 
@@ -69,14 +67,7 @@
         <!-- typing indicator below input -->
         <!-- placeholder for typing indicator -->
       </div>
-      
-      <div class="command-prompt-wrapper" :class="{ collapsed: isTerminalHidden }">
-        <CommandPrompt 
-          @toggle-visibility="toggleTerminal"
-          @send="handleSendMessage" 
-          @command="handleCommand" 
-        />
-      </div>
+    
     </q-footer>
   </q-layout>
 </template>
@@ -132,11 +123,6 @@ export default {
       // todo: broadcast typing status to other users via websocket
     }
 
-    const isTerminalHidden = ref(false)
-    const toggleTerminal = () => {
-      isTerminalHidden.value = !isTerminalHidden.value
-    }
-
     const toggleMembers = () => {
       router.push('/list')
     }
@@ -166,8 +152,6 @@ export default {
       handleSendMessage,
       handleCommand,
       handleTyping,
-      isTerminalHidden,
-      toggleTerminal,
       toggleMembers
     }
   }

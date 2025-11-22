@@ -9,22 +9,9 @@
       @keyup="handleTyping"
       bg-color="white"
     >
-      <!-- 🔹 PREPEND: CMD tlačidlo (len ak cmd nie je viditeľný) + profil -->
+
       <template v-slot:prepend>
         <div class="flex items-center q-gutter-sm">
-          <template v-if="!cmdVisible">
-            <q-btn
-              flat
-              round
-              dense
-              icon="arrow_upward"
-              color="primary"
-              class="toggle-cmd-btn"
-              @click="toggleCmd"
-              >
-              <q-tooltip>Show terminal</q-tooltip>
-            </q-btn>
-          </template>
 
           <q-btn
             flat
@@ -59,10 +46,7 @@
 import { ref, watch } from 'vue'
 
 export default {
-  emits: ['send', 'typing', 'toggle-cmd', 'toggle-members'],
-  props: {
-    cmdVisible: { type: Boolean, default: false }
-  },
+  emits: ['send', 'typing', 'toggle-members'],
   setup(props, { emit }) {
     const messageText = ref('')
     let typingTimeout: number | null = null
@@ -84,10 +68,6 @@ export default {
       }, 2000)
     }
 
-    const toggleCmd = () => {
-      emit('toggle-cmd', true)
-    }
-
     const toggleMembers = () => {
       emit('toggle-members', true)
     }
@@ -96,7 +76,6 @@ export default {
       messageText,
       sendMessage,
       handleTyping,
-      toggleCmd,
       toggleMembers
     }
   }
