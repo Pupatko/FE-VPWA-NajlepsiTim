@@ -21,21 +21,22 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
-    children: [
-      { path: 'channel', component: () => import('pages/ChatPage.vue') },
-      { path: 'create-channel', component: () => import('pages/CreateChannelPage.vue') },
-      { path: 'settings', component: () => import('pages/SettingsPage.vue') },
-      { path: 'profile', component: () => import('pages/ProfilePage.vue') },
-      { path: 'public-channels', component: () => import('pages/ViewPublicChannelsPage.vue') },
-      { path: 'list', component: () => import('pages/MembersPage.vue') }
-    ],
+  children: [
+    { path: '', redirect: '/channels' }, // ✅ PRIDANÉ - default redirect
+    { path: 'channels', component: () => import('pages/IndexPage.vue') }, // ✅ PRIDANÉ
+    { path: 'channels/:channelId', component: () => import('pages/ChatPage.vue') }, //
+    { path: 'channel', redirect: to => `/channels/${to.query.id || ''}` }, // ✅ PRIDAN
+    { path: 'create-channel', component: () => import('pages/CreateChannelPage.vue') },
+    { path: 'settings', component: () => import('pages/SettingsPage.vue') },
+    { path: 'profile', component: () => import('pages/ProfilePage.vue') },
+    { path: 'public-channels', component: () => import('pages/ViewPublicChannelsPage.vue') },
+    { path: 'list', component: () => import('pages/MembersPage.vue') }
+  ],
   },
-
   // error page
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),
   },
 ]
-
 export default routes

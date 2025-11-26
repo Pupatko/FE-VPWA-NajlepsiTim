@@ -8,13 +8,13 @@
       </q-card-section>
 
       <q-card-section>
-        <!-- first name, last name -->
         <div class="row q-col-gutter-md q-mb-md">
           <div class="col">
             <q-input
               v-model="firstName"
               label="First Name"
               outlined
+              :disable="loading"
             />
           </div>
           <div class="col">
@@ -22,43 +22,45 @@
               v-model="lastName"
               label="Last Name"
               outlined
+              :disable="loading"
             />
           </div>
         </div>
 
-        <!-- nickname -->
         <q-input
           v-model="nickName"
           label="Nickname"
           outlined
           class="q-mb-md"
+          :disable="loading"
         />
 
-        <!-- email -->
         <q-input
           v-model="email"
           label="Email"
           type="email"
           outlined
           class="q-mb-md"
+          :disable="loading"
         />
 
-        <!-- password -->
         <q-input
           v-model="password"
           label="Password"
           type="password"
           outlined
           class="q-mb-md"
+          :disable="loading"
         />
 
-        <!-- confirm password -->
         <q-input
           v-model="confirmPassword"
           label="Confirm Password"
           type="password"
           outlined
           class="q-mb-lg"
+          :disable="loading"
+          @keyup.enter="handleRegister"
         />
 
         <q-btn
@@ -67,10 +69,10 @@
           unelevated
           class="full-width q-mb-md"
           size="lg"
+          :loading="loading"
           @click="handleRegister"
         />
 
-        <!-- divider -->
         <div class="row items-center q-my-md">
           <q-separator class="col" />
           <div class="text-caption divider-text q-px-md">or</div>
@@ -84,10 +86,10 @@
           class="full-width"
           size="lg"
           to="/login"
+          :disable="loading"
         />
       </q-card-section>
 
-      <!-- /login link -->
       <q-card-section class="text-center q-pt-none">
         <div class="text-body2 login-text">
           Already have an account? 
@@ -105,7 +107,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import store from 'src/store'
+import authService from 'src/services/auth.service'
+import authManager from 'src/services/auth-manager'
 
 const firstName = ref('')
 const lastName = ref('')
@@ -113,32 +116,46 @@ const nickName = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
+const loading = ref(false)
 
 const router = useRouter()
 const $q = useQuasar()
 
 const handleRegister = async () => {
+  if (!firstName.value || !lastName.value || !nickName.value || !email.value || !password.value) {
+    $q.notify({ type: 'warning', message: 'Please fill in all fields' })
+    return
+  }
+
   if (password.value !== confirmPassword.value) {
     $q.notify({ type: 'negative', message: 'Passwords do not match' })
     return
   }
 
+  loading.value = true
+
   try {
-    const data = {
+    const response = await authService.register({
       firstName: firstName.value,
       lastName: lastName.value,
       nickName: nickName.value,
       email: email.value,
       password: password.value,
-    }
+    })
 
-    await store.dispatch('auth/register', data)
+    authManager.setToken(response.token)
 
-    router.push('/channel')
+    $q.notify({ type: 'positive', message: 'Registration successful!' })
+
+    router.push('/channels')
   } catch (err: any) {
-    $q.notify({ type: 'negative', message: err?.response?.data?.message || 'Registration failed' })
+    const msg = err?.response?.data?.message || 'Registration failed'
+    $q.notify({ type: 'negative', message: msg })
+  } finally {
+    loading.value = false
   }
 }
+
 </script>
 
 <style lang="scss" scoped>

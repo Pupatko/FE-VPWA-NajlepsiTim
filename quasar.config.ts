@@ -13,7 +13,6 @@ export default defineConfig((/* ctx */) => {
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
     boot: [
       'axios',
-      'auth',
     ],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
@@ -82,8 +81,9 @@ export default defineConfig((/* ctx */) => {
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
     devServer: {
-      // https: true,
-      open: true, // opens browser window automatically
+      host: '0.0.0.0',
+      port: 9000,
+      open: true
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
