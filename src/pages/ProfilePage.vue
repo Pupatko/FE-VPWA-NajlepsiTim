@@ -46,10 +46,9 @@ const $q = useQuasar()
 
 const logout = async () => {
   try {
-    await store.dispatch('/logout')
-  } catch {
-    // ignore
-  }
+    await store.dispatch('auth/logout')
+    authManager.logout()
+  } catch {}
 
   $q.notify({ message: 'Logged out!', color: 'negative' })
   router.push('/login')

@@ -64,7 +64,7 @@ class AuthService {
    * Register new user
    */
   async register(data: RegisterData): Promise<RegisterResponse> {
-    const response = await api.post<RegisterResponse>('/auth/register', { // ✅ Opravený endpoint
+    const response = await api.post<RegisterResponse>('/auth/register', {
       firstName: data.firstName,
       lastName: data.lastName,
       nickName: data.nickName,
@@ -78,7 +78,7 @@ class AuthService {
    * Login user
    */
   async login(credentials: LoginCredentials): Promise<ApiToken> {
-    const response = await api.post<ApiToken>('/auth/login', credentials) // ✅ Opravený endpoint
+    const response = await api.post<ApiToken>('/auth/login', credentials)
     return response.data
   }
 
@@ -86,7 +86,7 @@ class AuthService {
    * Logout user
    */
   async logout(): Promise<void> {
-    await api.post('/auth/logout') // ✅ Opravený endpoint
+    await api.post('/auth/logout')
   }
 
   /**

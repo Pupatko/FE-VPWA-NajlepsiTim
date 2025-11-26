@@ -1,5 +1,6 @@
 import { Module } from 'vuex'
-import { authService, authManager } from 'src/services'
+import authService from 'src/services/auth.service'
+import authManager from 'src/services/auth-manager'
 import type { User } from 'src/contracts/auth'
 import type { LoginCredentials, RegisterData } from 'src/contracts/auth'
 
@@ -45,19 +46,22 @@ const auth: Module<AuthState, any> = {
       return user
     },
 
-    async register({ dispatch }, data) {
+    async register({ dispatch }, data: RegisterData) {
       await authService.register(data)
 
-      // auto login immediately
       await dispatch('login', {
         email: data.email,
-        password: data.password,
-        remember: false
+        password: data.password
       })
     },
 
     async logout({ commit }) {
-      await authService.logout()
+      try {
+        await authService.logout()
+      } catch (e) {
+        // ignore API error but still remove token
+      }
+
       authManager.removeToken()
       commit('CLEAR_USER')
     }
