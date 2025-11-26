@@ -1,5 +1,6 @@
 <template>
   <q-list class="channel-list">
+    
     <!-- Loading state -->
     <div v-if="loading" class="q-pa-md text-center">
       <q-spinner color="primary" size="40px" />
@@ -7,7 +8,10 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="!loading && filteredChannels.length === 0" class="q-pa-md text-center">
+    <div
+      v-else-if="!loading && (filteredChannels?.length ?? 0) === 0"
+      class="q-pa-md text-center"
+    >
       <q-icon name="chat_bubble_outline" size="48px" color="grey-6" />
       <div class="q-mt-sm text-grey-6">No channels found</div>
       <q-btn
@@ -49,6 +53,7 @@
         </q-badge>
       </q-item-section>
     </q-item>
+
   </q-list>
 </template>
 
@@ -79,29 +84,39 @@ const activeChannelId = computed(() => {
   return route.params.channelId ? Number(route.params.channelId) : null
 })
 
-// Filter channels based on type
+// Filter channels safely
 const filteredChannels = computed(() => {
+  if (!channels.value || !Array.isArray(channels.value)) return []
+
   if (props.activeType === 'private') {
-    return channels.value.filter(c => c.private === true)
-  } else {
-    return channels.value.filter(c => c.private === false)
+    return channels.value.filter((c: any) => c.private === true)
   }
+
+  return channels.value.filter((c: any) => c.private === false)
 })
 
 // Load channels
 const loadChannels = async () => {
   loading.value = true
   try {
-    channels.value = await channelService.getMyChannels()
+    const data = await channelService.getMyChannels()
+
+    if (!Array.isArray(data)) {
+      console.error('❌ Backend did not return array:', data)
+      channels.value = []
+    } else {
+      channels.value = data
+    }
+
     console.log('✅ Channels loaded:', channels.value)
+
   } catch (error: any) {
     console.error('❌ Failed to load channels:', error)
+
     $q.notify({
       type: 'negative',
       message: error?.response?.data?.message || 'Failed to load channels'
     })
-    
-    // Fallback demo data (optional)
     channels.value = []
   } finally {
     loading.value = false
@@ -113,17 +128,15 @@ const selectChannel = (channelId: number) => {
   router.push(`/channels/${channelId}`)
 }
 
-// Watch for type changes to reload if needed
+// Reload on props update (optional)
 watch(() => props.activeType, () => {
-  console.log('Type changed to:', props.activeType)
+  console.log('Channel type changed →', props.activeType)
 })
 
 // Load on mount
-onMounted(() => {
-  loadChannels()
-})
+onMounted(() => loadChannels())
 
-// Expose reload method for parent components
+// Expose reload method
 defineExpose({
   reload: loadChannels
 })
