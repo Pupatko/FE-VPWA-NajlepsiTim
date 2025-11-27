@@ -1,6 +1,7 @@
 <template>
   <q-page class="members-page flex flex-center">
     <q-card class="members-card" flat bordered>
+
       <!-- Header -->
       <q-card-section class="card-header row items-center justify-between">
         <div>
@@ -9,6 +10,7 @@
             List of users currently in this channel
           </div>
         </div>
+
         <q-btn flat color="grey" label="Back" @click="goBack" />
       </q-card-section>
 
@@ -17,70 +19,87 @@
       <!-- Members list -->
       <q-card-section>
         <q-list bordered separator>
-          <q-item v-for="member in members" :key="member.id" clickable>
+
+          <q-item v-for="member in members" :key="member.nick_name">
+
+            <!-- avatar -->
             <q-item-section avatar>
-              <q-avatar>
-                <img :src="member.avatar" alt="avatar" />
+              <q-avatar color="primary" text-color="white">
+                {{ member.nick_name[0].toUpperCase() }}
               </q-avatar>
             </q-item-section>
 
+            <!-- name + owner badge -->
             <q-item-section>
-              <q-item-label>{{ member.name }}</q-item-label>
-              <q-item-label caption>
+              <q-item-label>
+                {{ member.nick_name }}
+
                 <q-badge
-                  :color="member.status === 'online' ? 'green' : 'grey'"
-                  rounded
-                  class="q-mr-sm"
-                />
-                {{ member.status }}
+                  v-if="member.owner"
+                  color="purple"
+                  class="q-ml-xs"
+                >
+                  owner
+                </q-badge>
+              </q-item-label>
+
+              <q-item-label caption>
+                <span v-if="member.kick_count >= 3" style="color: red">
+                  banned
+                </span>
+                <span v-else>
+                  member
+                </span>
               </q-item-label>
             </q-item-section>
 
           </q-item>
+
         </q-list>
       </q-card-section>
+
     </q-card>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { api } from 'src/boot/axios'
 
 const router = useRouter()
+const route = useRoute()
 
 interface Member {
-  id: number
-  name: string
-  avatar: string
-  status: 'online' | 'offline' | 'dnd'
+  nick_name: string
+  owner: boolean
+  kick_count: number
 }
 
-const members = ref<Member[]>([
-  {
-    id: 1,
-    name: 'John Doe',
-    avatar: 'https://cdn.quasar.dev/img/avatar1.jpg',
-    status: 'online'
-  },
-  {
-    id: 2,
-    name: 'Jane Smith',
-    avatar: 'https://cdn.quasar.dev/img/avatar2.jpg',
-    status: 'dnd'
-  },
-  {
-    id: 3,
-    name: 'Alex Johnson',
-    avatar: 'https://cdn.quasar.dev/img/avatar3.jpg',
-    status: 'offline'
-  }
-])
+const members = ref<Member[]>([])
 
 const goBack = () => {
-  router.push('/')
+  router.back()
 }
 
+async function loadMembers() {
+  try {
+    const channelId = Number(route.params.channelId)
+    if (!channelId) return
+
+    const { data } = await api.post('/ws/command', {
+      channelId,
+      content: '/list',
+    })
+
+    members.value = data.members || []
+
+  } catch (err) {
+    console.error('Load members failed:', err)
+  }
+}
+
+onMounted(loadMembers)
 </script>
 
 <style scoped lang="scss">
@@ -96,10 +115,6 @@ const goBack = () => {
   background-color: $message-area-bg;
   border-radius: $border-radius;
   box-shadow: $shadow-medium;
-}
-
-.card-header {
-  background-color: $message-area-bg;
 }
 
 .text-secondary {
