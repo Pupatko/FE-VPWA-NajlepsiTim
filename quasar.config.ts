@@ -15,6 +15,7 @@ export default defineConfig((/* ctx */) => {
       'axios',
       'store',
       'socket',
+      'notifications',
     ],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
