@@ -68,61 +68,118 @@
   </q-page>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useStore } from 'vuex'
-import authService from 'src/services/auth.service'
+import authService, { User } from 'src/services/auth.service'
 
 const router = useRouter()
 const $q = useQuasar()
 const store = useStore()
 
-// Notification settings
-const notificationSettings = ref('all')
+// Notification settings (backend: 'all' | 'mentions_only')
+const notificationSettings = ref<'all' | 'mentions_only'>('all')
 const notificationOptions = [
-  { label: 'All Messages', value: 'all', description: 'Receive notifications for every new message in channels' },
-  { label: 'Mentioned Only', value: 'mentions_only', description: 'Only get notified when someone mentions you with @nickname' }
+  {
+    label: 'All Messages',
+    value: 'all',
+    description: 'Receive notifications for every new message in channels',
+  },
+  {
+    label: 'Mentioned Only',
+    value: 'mentions_only',
+    description: 'Only get notified when someone mentions you with @nickname',
+  },
 ]
 
-// Activity status (placeholder for WebSocket)
-const activityStatus = ref('online')
+// Activity status (frontend: 'online' | 'dnd' | 'offline')
+const activityStatus = ref<'online' | 'dnd' | 'offline'>('online')
 const activityOptions = [
   { label: 'Online', value: 'online', color: 'online-status' },
   { label: 'Do Not Disturb', value: 'dnd', color: 'dnd-status' },
-  { label: 'Offline', value: 'offline', color: 'offline-status' }
+  { label: 'Offline', value: 'offline', color: 'offline-status' },
 ]
 
-const getStatusColor = (status) => {
-  const statusMap = {
+// farba ikonky podľa statusu
+const getStatusColor = (status: 'online' | 'dnd' | 'offline') => {
+  const statusMap: Record<string, string> = {
     online: 'online-status',
     dnd: 'dnd-status',
-    offline: 'offline-status'
+    offline: 'offline-status',
   }
   return statusMap[status] || 'grey'
 }
 
+// načítaj aktuálne hodnoty zo store po otvorení stránky
 onMounted(() => {
-  const authModule = store.state?.auth
-  if (!authModule) return  // store still loading
-  
-  const user = authModule.user
-  if (user?.notificationMode) {
+  const user = store.state.auth.user as User | null
+
+  if (user) {
+    // backend -> frontend
     notificationSettings.value = user.notificationMode
+
+    if (user.state === 1) activityStatus.value = 'online'
+    else if (user.state === 2) activityStatus.value = 'dnd'
+    else if (user.state === 3) activityStatus.value = 'offline'
+  }
+
+  // ak nie je v localStorage nič, inicializuj
+  const existing = localStorage.getItem('notificationSettings')
+  if (!existing) {
+    localStorage.setItem(
+      'notificationSettings',
+      JSON.stringify({
+        type: notificationSettings.value === 'all' ? 'all' : 'mentions',
+        showPreview: true,
+        state: activityStatus.value,
+      })
+    )
   }
 })
 
 const saveSettings = async () => {
   try {
-    const updatedUser = await authService.updateSettings({ notificationMode: notificationSettings.value })
+    // frontend string -> backend číslo
+    const stateNumber: 1 | 2 | 3 =
+      activityStatus.value === 'online'
+        ? 1
+        : activityStatus.value === 'dnd'
+        ? 2
+        : 3
+
+    const updatedUser = await authService.updateSettings({
+      notificationMode: notificationSettings.value,
+      state: stateNumber,
+    })
+
+    // update usera v store
     store.commit('auth/SET_USER', updatedUser)
-    $q.notify({ type: 'positive', message: 'Notification settings updated successfully', icon: 'check_circle' })
+
+    // uložiť aj do localStorage pre messageNotifications
+    localStorage.setItem(
+      'notificationSettings',
+      JSON.stringify({
+        type: notificationSettings.value === 'all' ? 'all' : 'mentions',
+        showPreview: true,
+        state: activityStatus.value,
+      })
+    )
+
+    $q.notify({
+      type: 'positive',
+      message: 'Settings updated successfully',
+      icon: 'check_circle',
+    })
   } catch (err) {
     console.error(err)
-    $q.notify({ type: 'negative', message: 'Failed to update settings', icon: 'error' })
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to update settings',
+      icon: 'error',
+    })
   }
-  // Activity status: placeholder, WebSocket integration later
 }
 
 const goBack = () => router.push('/')

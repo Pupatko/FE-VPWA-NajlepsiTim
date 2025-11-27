@@ -90,9 +90,12 @@ class AuthService {
   }
 
   /**
-   * Update user settings (notification mode)
+   * Update user settings (notification mode + state)
    */
-  async updateSettings(settings: { notificationMode?: 'all' | 'mentions_only' }): Promise<User> {
+  async updateSettings(settings: {
+    notificationMode?: 'all' | 'mentions_only'
+    state?: 1 | 2 | 3
+  }): Promise<User> {
     const response = await api.put<User>('/users/me/settings', settings)
     return response.data
   }
