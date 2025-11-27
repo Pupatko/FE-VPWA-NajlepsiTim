@@ -73,12 +73,13 @@
 </template>
 
 <script lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import ChannelPanel from '../components/ChannelPanel.vue'
 import MessageInput from '../components/MessageInput.vue'
 import { api } from 'src/boot/axios'
+import channelService from 'src/services/channel.service'
 
 export default {
   components: {
@@ -89,7 +90,7 @@ export default {
     const leftDrawerOpen = ref(false)
     const userStatus = ref('online')
     const currentUser = ref('user123')
-    const currentChannel = ref('general')
+    const currentChannel = ref('') // už nie 'general' napevno
 
     const channels = ref([
       { id: '1', name: 'general', type: 'public', unread: 0 },
@@ -109,6 +110,25 @@ export default {
       router.push(`/channels/${channelId}`)
     }
 
+    // 🔥 Funkcia, ktorá načíta názov kanála podľa ID z route
+    const updateCurrentChannelFromRoute = async () => {
+      const channelIdParam = route.params.channelId
+      const channelId = Number(channelIdParam)
+
+      if (!channelId || Number.isNaN(channelId)) {
+        currentChannel.value = ''
+        return
+      }
+
+      try {
+        const channel = await channelService.getChannel(channelId)
+        currentChannel.value = channel.name
+      } catch (error) {
+        console.error('Failed to load channel info', error)
+        currentChannel.value = ''
+      }
+    }
+
     const handleSendMessage = async (message: string) => {
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
@@ -122,7 +142,7 @@ export default {
       }
 
       try {
-        // PRÍKAZY (napr. /join, /invite, /kick, ...)
+        // PRÍKAZY (/join, /invite, /kick, ...)
         if (message.startsWith('/')) {
           const { data } = await api.post('/ws/command', {
             channelId,
@@ -138,7 +158,7 @@ export default {
             message: msg,
           })
 
-          // ak príkaz (napr. /join) vráti channelId, presmeruj do daného kanála
+          // ak príkaz vrátil channelId (napr. /join), presmeruj do kanála
           if (data && data.channelId) {
             router.push(`/channels/${data.channelId}`)
           }
@@ -146,7 +166,7 @@ export default {
           return
         }
 
-        // BEŽNÁ TEXTOVÁ SPRÁVA
+        // BEŽNÁ SPRÁVA
         const { data } = await api.post('/ws/message', {
           channelId,
           content: message,
@@ -192,6 +212,19 @@ export default {
     const Profile = () => {
       router.push('/profile')
     }
+
+    // 🔄 Pri prvom načítaní layoutu nastav názov kanála podľa aktuálnej route
+    onMounted(() => {
+      updateCurrentChannelFromRoute()
+    })
+
+    // 🔄 Pri každom prepnutí kanála (zmena route parametra) obnov názov
+    watch(
+      () => route.params.channelId,
+      () => {
+        updateCurrentChannelFromRoute()
+      }
+    )
 
     return {
       leftDrawerOpen,
