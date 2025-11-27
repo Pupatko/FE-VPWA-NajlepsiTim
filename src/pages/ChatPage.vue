@@ -1,7 +1,7 @@
 <template>
   <q-page class="chat-page">
     <div class="messages-area">
-      <q-infinite-scroll @load="onLoad" reverse>
+      <q-infinite-scroll ref="infiniteScrollRef" @load="onLoad" reverse>
         <template v-slot:loading>
           <div class="row justify-center q-my-md">
             <q-spinner color="primary" name="dots" size="40px" />
@@ -23,102 +23,166 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { api } from 'src/boot/axios'
+import authService from 'src/services/auth.service'
+import channelService from 'src/services/channel.service'
 import MessageItem from '../components/MessageItem.vue'
 import TypingIndicator from '../components/TypingIndicator.vue'
 import { messageNotifications } from '../services/messageNotifications'
 
+interface BackendMessage {
+  id: number
+  content: string
+  createdAt: string
+  userId: number
+  mentionedUserId: number | null
+  authorNickName: string
+  mentionedUserNickName?: string | null
+}
+
+interface ChatMessage {
+  id: number
+  author: string
+  content: string
+  timestamp: Date
+  mentionedUser?: string | null
+}
+
 const $q = useQuasar()
-const currentUser = ref('me')
-const currentChannel = ref('general')
-const typingUsers = ref([])
-const messages = ref([
-  {
-    id: 1,
-    author: 'roman123',
-    content: 'hey everyone! how is it going?',
-    timestamp: new Date(Date.now() - 10000)
-  },
-  {
-    id: 2,
-    author: 'roman321',
-    content: 'pretty good! working on this chat app',
-    timestamp: new Date(Date.now() - 9000)
-  },
-  {
-    id: 3,
-    author: 'me',
-    content: 'nice! looks great so far',
-    timestamp: new Date(Date.now() - 8000)
+const route = useRoute()
+
+const currentUser = ref<string>('me')
+const currentChannel = ref<string>('') // názov kanála z backendu
+const typingUsers = ref<string[]>([])
+const messages = ref<ChatMessage[]>([])
+const hasMore = ref(true)
+const isLoading = ref(false)
+
+const infiniteScrollRef = ref<any | null>(null)
+
+// načítanie info o userovi a kanáli
+async function loadMeta() {
+  try {
+    const me = await authService.me()
+    currentUser.value = me.nickName
+  } catch (error) {
+    console.error('Failed to load current user', error)
   }
-])
 
-const allUsers = ['Ed', 'Alice', 'Bob', 'Charlie', 'Dana']
-let simulationInterval = null
+  try {
+    const channelId = Number(route.params.channelId)
+    if (!Number.isNaN(channelId)) {
+      const channel = await channelService.getChannel(channelId)
+      currentChannel.value = channel.name
+    }
+  } catch (error) {
+    console.error('Failed to load channel info', error)
+    currentChannel.value = `channel-${route.params.channelId}`
+  }
 
-const simulateRandomTyping = () => {
-  const randomCount = Math.floor(Math.random() * 3)
-  
-  if (randomCount === 0) {
-    typingUsers.value = []
+  messageNotifications.init($q)
+}
+
+// načítanie jednej strany správ z backendu
+async function fetchMessages(page: number) {
+  const channelId = Number(route.params.channelId)
+  if (Number.isNaN(channelId)) {
+    return
+  }
+
+  const response = await api.get<{
+    data: BackendMessage[]
+    meta: { page: number; limit: number; hasMore: boolean }
+  }>(`/channels/${channelId}/messages`, {
+    params: { page, limit: 20 },
+  })
+
+  const backendMessages = response.data.data
+
+  const mapped: ChatMessage[] = backendMessages.map((m) => ({
+    id: m.id,
+    author: m.authorNickName,
+    content: m.content,
+    timestamp: new Date(m.createdAt),
+    mentionedUser: m.mentionedUserNickName ?? null,
+  }))
+
+  if (page === 1 && messages.value.length === 0) {
+    // prvé načítanie
+    messages.value = mapped
   } else {
-    const shuffled = [...allUsers].sort(() => 0.5 - Math.random())
-    typingUsers.value = shuffled.slice(0, randomCount)
+    // staršie správy pridávame na začiatok (infinite scroll hore)
+    messages.value.unshift(...mapped)
+  }
+
+  hasMore.value = response.data.meta.hasMore
+}
+
+// handler pre <q-infinite-scroll>
+const onLoad = async (index: number, done: () => void) => {
+  if (isLoading.value || !hasMore.value) {
+    done()
+    return
+  }
+
+  isLoading.value = true
+  try {
+    await fetchMessages(index)
+  } catch (error) {
+    console.error('Failed to load messages', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Nepodarilo sa načítať správy',
+    })
+  } finally {
+    isLoading.value = false
+    done()
   }
 }
 
 onMounted(async () => {
-  messageNotifications.init($q)
-  
-  simulateRandomTyping()
-  simulationInterval = setInterval(simulateRandomTyping, 10000)
-  
-  setTimeout(() => {
-    const newMessage = {
-      id: messages.value.length + 1,
-      author: 'john123',
-      content: 'Hey @me, check this out!',
-      timestamp: new Date()
-    }
-    messages.value.push(newMessage)
-  }, 5000)
+  await loadMeta()
 })
 
 onUnmounted(() => {
-  if (simulationInterval) {
-    clearInterval(simulationInterval)
-  }
+  // sem neskôr môžeme dať cleanup (zrušenie WS listenerov a pod.)
 })
 
-watch(() => messages.value.length, (newLength, oldLength) => {
-  if (newLength > oldLength) {
-    const latestMessage = messages.value[messages.value.length - 1]
-    
-    if (latestMessage.author !== currentUser.value) {
-      messageNotifications.notifyNewMessage(
-        latestMessage,
-        currentChannel.value,
-        currentUser.value
-      )
+// notifikácie pri nových správach
+watch(
+  () => messages.value.length,
+  (newLength, oldLength) => {
+    if (newLength > oldLength && messages.value.length > 0) {
+      const latestMessage = messages.value[messages.value.length - 1]
+
+      if (latestMessage.author !== currentUser.value) {
+        messageNotifications.notifyNewMessage(
+          latestMessage,
+          currentChannel.value || `channel-${route.params.channelId}`,
+          currentUser.value
+        )
+      }
     }
   }
-})
+)
 
-const onLoad = (index, done) => {
-  setTimeout(() => {
-    const olderMessages = [
-      {
-        id: messages.value.length + 1,
-        author: 'oldUser',
-        content: 'This is an older message',
-        timestamp: new Date(Date.now() - 20000)
-      }
-    ]
-    
-    messages.value.unshift(...olderMessages)
-    done()
-  }, 1000)
-}
+// pri prepnutí na iný kanál resetneme správy + infinite scroll
+watch(
+  () => route.params.channelId,
+  async () => {
+    messages.value = []
+    hasMore.value = true
+
+    if (infiniteScrollRef.value) {
+      infiniteScrollRef.value.reset()
+      infiniteScrollRef.value.resume()
+    }
+
+    await loadMeta()
+  }
+)
 </script>
 
 <style lang="scss" scoped>
