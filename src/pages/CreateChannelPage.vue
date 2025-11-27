@@ -3,13 +3,15 @@
     <q-card class="create-channel-card" flat bordered>
       <q-card-section class="card-header">
         <div class="text-h5">Create Channel</div>
-        <div class="text-subtitle2 text-secondary">Create a new communication channel</div>
+        <div class="text-subtitle2 text-secondary">
+          Create a new communication channel
+        </div>
       </q-card-section>
 
       <q-separator />
 
       <q-card-section>
-        <q-form @submit="onSubmit" class="q-gutter-md">
+        <q-form @submit.prevent="onSubmit" class="q-gutter-md">
           <!-- Channel Name -->
           <q-input
             filled
@@ -17,7 +19,7 @@
             label="Channel Name"
             placeholder="e.g. general, random, team-chat"
             :rules="[
-              val => val && val.length > 0 || 'Channel name is required',
+              val => !!val || 'Channel name is required',
               val => val.length >= 3 || 'Minimum 3 characters',
               val => /^[a-zA-Z0-9-_]+$/.test(val) || 'Only letters, numbers, dashes and underscores'
             ]"
@@ -44,7 +46,9 @@
                   <q-icon :name="opt.icon" size="sm" class="q-mr-sm" />
                   <div>
                     <div class="text-weight-medium">{{ opt.label }}</div>
-                    <div class="text-caption text-grey-7">{{ opt.description }}</div>
+                    <div class="text-caption text-grey-7">
+                      {{ opt.description }}
+                    </div>
                   </div>
                 </div>
               </template>
@@ -78,55 +82,62 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import api from 'src/api/axios'
+import channelService from 'src/services/channel.service'
 
 export default {
   name: 'CreateChannelPage',
   setup() {
     const router = useRouter()
     const $q = useQuasar()
-    
+
     const channelName = ref('')
-    const channelType = ref('public')
-    
+    const channelType = ref<'public' | 'private'>('public')
+
     const channelOptions = [
       {
         label: 'Public',
         value: 'public',
         icon: 'public',
-        description: 'Anyone can see and join'
+        description: 'Anyone can see and join',
       },
       {
         label: 'Private',
         value: 'private',
         icon: 'lock',
-        description: 'Only invited members have access'
-      }
+        description: 'Only invited members have access',
+      },
     ]
 
-  const onSubmit = async () => {
-    try {
-      const res = await api.post('/join', {
-        channelName: channelName.value,
-        channelType: channelType.value,
-      })
+    const onSubmit = async () => {
+      try {
+        const isPrivate = channelType.value === 'private'
 
-      $q.notify({
-        type: 'positive',
-        message: `Channel #${channelName.value} created successfully`,
-        icon: 'check_circle'
-      })
+        const result = await channelService.joinChannel({
+          name: channelName.value,
+          private: isPrivate,
+        })
 
-      router.push('/')
-    } catch (err) {
-      console.error(err)
-      $q.notify({
-        type: 'negative',
-        message: 'Failed to create channel',
-        icon: 'error'
-      })
+        $q.notify({
+          type: 'positive',
+          message:
+            result.message ||
+            `Channel #${channelName.value} created / joined successfully`,
+          icon: 'check_circle',
+        })
+
+        // presmeruj rovno do daného kanála
+        router.push(`/channels/${result.id}`)
+      } catch (err: any) {
+        console.error('Failed to create/join channel', err)
+
+        $q.notify({
+          type: 'negative',
+          message:
+            err?.response?.data?.message || 'Failed to create channel',
+          icon: 'error',
+        })
+      }
     }
-  }
 
     const onCancel = () => {
       router.push('/')
@@ -137,9 +148,9 @@ export default {
       channelType,
       channelOptions,
       onSubmit,
-      onCancel
+      onCancel,
     }
-  }
+  },
 }
 </script>
 
