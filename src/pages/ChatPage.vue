@@ -22,7 +22,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import {
+  ref,
+  onMounted,
+  onUnmounted,
+  watch,
+  getCurrentInstance,
+  computed,
+} from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
@@ -40,6 +47,7 @@ interface BackendMessage {
   mentionedUserId: number | null
   authorNickName: string
   mentionedUserNickName?: string | null
+  channelId: number
 }
 
 interface ChatMessage {
@@ -53,6 +61,9 @@ interface ChatMessage {
 const $q = useQuasar()
 const route = useRoute()
 
+const internalInstance = getCurrentInstance()
+const socket = internalInstance?.appContext.config.globalProperties.$socket as any
+
 const currentUser = ref<string>('me')
 const currentChannel = ref<string>('') // názov kanála z backendu
 const typingUsers = ref<string[]>([])
@@ -61,6 +72,11 @@ const hasMore = ref(true)
 const isLoading = ref(false)
 
 const infiniteScrollRef = ref<any | null>(null)
+
+const channelId = computed(() => {
+  const id = Number(route.params.channelId)
+  return Number.isNaN(id) ? null : id
+})
 
 // načítanie info o userovi a kanáli
 async function loadMeta() {
@@ -72,14 +88,13 @@ async function loadMeta() {
   }
 
   try {
-    const channelId = Number(route.params.channelId)
-    if (!Number.isNaN(channelId)) {
-      const channel = await channelService.getChannel(channelId)
+    if (channelId.value !== null) {
+      const channel = await channelService.getChannel(channelId.value)
       currentChannel.value = channel.name
     }
   } catch (error) {
     console.error('Failed to load channel info', error)
-    currentChannel.value = `channel-${route.params.channelId}`
+    currentChannel.value = channelId.value !== null ? `channel-${channelId.value}` : ''
   }
 
   messageNotifications.init($q)
@@ -87,15 +102,12 @@ async function loadMeta() {
 
 // načítanie jednej strany správ z backendu
 async function fetchMessages(page: number) {
-  const channelId = Number(route.params.channelId)
-  if (Number.isNaN(channelId)) {
-    return
-  }
+  if (channelId.value === null) return
 
   const response = await api.get<{
     data: BackendMessage[]
     meta: { page: number; limit: number; hasMore: boolean }
-  }>(`/channels/${channelId}/messages`, {
+  }>(`/channels/${channelId.value}/messages`, {
     params: { page, limit: 20 },
   })
 
@@ -110,10 +122,8 @@ async function fetchMessages(page: number) {
   }))
 
   if (page === 1 && messages.value.length === 0) {
-    // prvé načítanie
     messages.value = mapped
   } else {
-    // staršie správy pridávame na začiatok (infinite scroll hore)
     messages.value.unshift(...mapped)
   }
 
@@ -142,12 +152,63 @@ const onLoad = async (index: number, done: () => void) => {
   }
 }
 
+// handler pre realtime správy zo Socket.IO
+function handleSocketMessage(payload: any) {
+  if (!payload || channelId.value === null) return
+
+  const msgChannelId = payload.channelId ?? payload.channel_id
+  if (msgChannelId !== channelId.value) return
+
+  const chatMessage: ChatMessage = {
+    id: payload.id,
+    author:
+      payload.authorNickName ??
+      payload.author_nick_name ??
+      'unknown',
+    content: payload.content,
+    timestamp: new Date(payload.createdAt ?? payload.created_at),
+    mentionedUser:
+      payload.mentionedUserNickName ??
+      payload.mentioned_user_nick_name ??
+      null,
+  }
+
+  messages.value.push(chatMessage)
+}
+
+// handler pre typing eventy
+function handleSocketTyping(payload: any) {
+  if (!payload || channelId.value === null) return
+
+  const msgChannelId = payload.channelId ?? payload.channel_id
+  if (msgChannelId !== channelId.value) return
+
+  const name: string =
+    payload.nickName ?? `User ${payload.userId ?? 'unknown'}`
+
+  if (payload.isTyping) {
+    if (!typingUsers.value.includes(name)) {
+      typingUsers.value.push(name)
+    }
+  } else {
+    typingUsers.value = typingUsers.value.filter((n) => n !== name)
+  }
+}
+
 onMounted(async () => {
   await loadMeta()
+
+  if (socket) {
+    socket.on('message', handleSocketMessage)
+    socket.on('typing', handleSocketTyping)
+  }
 })
 
 onUnmounted(() => {
-  // sem neskôr môžeme dať cleanup (zrušenie WS listenerov a pod.)
+  if (socket) {
+    socket.off('message', handleSocketMessage)
+    socket.off('typing', handleSocketTyping)
+  }
 })
 
 // notifikácie pri nových správach
@@ -159,8 +220,8 @@ watch(
 
       if (latestMessage.author !== currentUser.value) {
         messageNotifications.notifyNewMessage(
-          latestMessage,
-          currentChannel.value || `channel-${route.params.channelId}`,
+          latestMessage as any,
+          currentChannel.value || (channelId.value !== null ? `channel-${channelId.value}` : 'channel'),
           currentUser.value
         )
       }
@@ -173,6 +234,7 @@ watch(
   () => route.params.channelId,
   async () => {
     messages.value = []
+    typingUsers.value = []
     hasMore.value = true
 
     if (infiniteScrollRef.value) {
