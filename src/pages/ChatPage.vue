@@ -1,7 +1,11 @@
 <template>
   <q-page class="chat-page">
-    <div class="messages-area">
-      <q-infinite-scroll ref="infiniteScrollRef" @load="onLoad" reverse>
+    <div class="messages-area" ref="messagesContainer">
+      <q-infinite-scroll
+        ref="infiniteScrollRef"
+        @load="onLoad"
+        reverse
+      >
         <template v-slot:loading>
           <div class="row justify-center q-my-md">
             <q-spinner color="primary" name="dots" size="40px" />

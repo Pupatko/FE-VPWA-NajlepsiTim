@@ -14,30 +14,31 @@
     </q-card-section>
 
       <q-separator />
+        <q-card-section>
+          <div v-if="loading" class="q-pa-md text-center">
+            <q-spinner color="primary" size="40px" />
+            <div class="q-mt-sm text-grey-6">Loading channels...</div>
+          </div>
 
-      <q-card-section>
-        <q-infinite-scroll @load="loadMoreChannels" :offset="10">
-          <q-list bordered separator>
+          <q-list v-else bordered separator>
             <q-item
-                v-for="channel in publicChannels"
-                :key="channel.id"
-                clickable
-                @click="joinChannel(channel)"
+              v-for="channel in publicChannels"
+              :key="channel.id"
+              clickable
+              @click="joinChannel(channel)"
             >
-                <q-item-section avatar>
+              <q-item-section avatar>
                 <q-icon name="tag" color="primary" />
-                </q-item-section>
-                <q-item-section>
-                <q-item-label>{{ channel.name }}</q-item-label>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label># {{ channel.name }}</q-item-label>
                 <q-item-label caption>
-                    {{'Public channel' }}
+                  Public channel
                 </q-item-label>
-                </q-item-section>
+              </q-item-section>
             </q-item>
           </q-list>
-        </q-infinite-scroll>
-      </q-card-section>
-
+        </q-card-section>
       <q-separator />
 
 
@@ -46,74 +47,61 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import channelService, { Channel } from 'src/services/channel.service'
 
 const router = useRouter()
 const $q = useQuasar()
 
-interface Channel {
-  id: number
-  name: string
-  icon: string
-  isAdmin: boolean
-  isPrivate: boolean
-  description?: string
+const publicChannels = ref<Channel[]>([])
+const loading = ref(false)
+
+const loadPublicChannels = async () => {
+  try {
+    loading.value = true
+    publicChannels.value = await channelService.getPublicChannels()
+  } catch (error) {
+    console.error('Failed to load public channels', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Nepodarilo sa načítať verejné kanály',
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
-const publicChannels = ref<Channel[]>([
-  { id: 1, name: '# general', icon: 'tag', isAdmin: true, isPrivate: false },
-  { id: 2, name: '# random', icon: 'tag', isAdmin: false, isPrivate: false },
-  { id: 3, name: '# dev', icon: 'tag', isAdmin: true, isPrivate: false },
-  { id: 4, name: '# another public channel', icon: 'tag', isAdmin: false, isPrivate: false },
-  { id: 5, name: '# design', icon: 'tag', isAdmin: false, isPrivate: false },
-  { id: 6, name: '# test kanal', icon: 'tag', isAdmin: false, isPrivate: false },
-  { id: 7, name: '# public channel 1', icon: 'tag', isAdmin: false, isPrivate: false },
-  { id: 8, name: '# public channel 2', icon: 'tag', isAdmin: false, isPrivate: false },
-  { id: 9, name: '# public channel 3', icon: 'tag', isAdmin: false, isPrivate: false },
-  { id: 10, name: '# public channel 4', icon: 'tag', isAdmin: false, isPrivate: false }
-])
+onMounted(loadPublicChannels)
 
-const loadMoreChannels = (index: number, done: (stop?: boolean) => void) => {
-  setTimeout(() => {
-    
-    const newChannels: Channel[] = []
-    //temporary - potom pojdu existujuce z DB
-    for (let i = 0; i < 5; i++) {
-      const id = publicChannels.value.length + 1
-      newChannels.push({
-        id,
-        name: `# public channel ${id}`,
-        icon: 'tag',
-        isAdmin: false,
-        isPrivate: false
-      })
-    }
+const joinChannel = async (channel: Channel) => {
+  try {
+    const { channelId, message } = await channelService.joinChannel({
+      name: channel.name,
+      private: false,
+    })
 
-    publicChannels.value.push(...newChannels)
+    $q.notify({
+      message: message || `Joined ${channel.name}`,
+      type: 'positive',
+      icon: 'check_circle',
+    })
 
-    if (publicChannels.value.length >= 30) {
-      done(true)
-    } else {
-      done()
-    }
-  }, 1000)
-}
-
-const joinChannel = (channel: Channel) => {
-  $q.notify({
-    message: `Joined ${channel.name}`,
-    type: 'positive',
-    icon: 'check_circle'
-  })
-  router.push('/')
+    // presmeruj priamo do chatu daného kanála
+    router.push(`/channels/${channelId}`)
+  } catch (error: any) {
+    console.error('Failed to join channel', error)
+    $q.notify({
+      type: 'negative',
+      message: error?.response?.data?.message || 'Nepodarilo sa pripojiť do kanála',
+    })
+  }
 }
 
 const goBack = () => {
-  router.push('/')
+  router.back()
 }
-
 </script>
 
 <style lang="scss" scoped>

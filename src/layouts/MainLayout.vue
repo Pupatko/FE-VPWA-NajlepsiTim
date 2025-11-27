@@ -19,15 +19,15 @@
         </q-toolbar-title>
 
         <!-- right side -->
-          <div class="q-gutter-x-md">
-            <q-btn
-              flat
-              round
-              icon="account_circle"
-              @click="Profile"
-              aria-label="Profile"
-            />
-          </div>
+        <div class="q-gutter-x-md">
+          <q-btn
+            flat
+            round
+            icon="account_circle"
+            @click="Profile"
+            aria-label="Profile"
+          />
+        </div>
 
         <div class="q-gutter-x-md">
           <q-btn
@@ -122,7 +122,7 @@ export default {
       }
 
       try {
-        // príkazy začínajú na "/"
+        // PRÍKAZY (napr. /join, /invite, /kick, ...)
         if (message.startsWith('/')) {
           const { data } = await api.post('/ws/command', {
             channelId,
@@ -137,15 +137,21 @@ export default {
             type: 'positive',
             message: msg,
           })
-        } else {
-          // bežná správa
-          const { data } = await api.post('/ws/message', {
-            channelId,
-            content: message,
-          })
-          console.log('message sent', data)
-          // TODO: neskôr ju pridáme realtime do ChatPage cez Socket.IO klienta
+
+          // ak príkaz (napr. /join) vráti channelId, presmeruj do daného kanála
+          if (data && data.channelId) {
+            router.push(`/channels/${data.channelId}`)
+          }
+
+          return
         }
+
+        // BEŽNÁ TEXTOVÁ SPRÁVA
+        const { data } = await api.post('/ws/message', {
+          channelId,
+          content: message,
+        })
+        console.log('message sent', data)
       } catch (error: any) {
         console.error('send failed', error)
         $q.notify({
@@ -246,5 +252,4 @@ export default {
 .typing-indicator-container {
   padding: 0 16px 8px 16px;
 }
-
 </style>
