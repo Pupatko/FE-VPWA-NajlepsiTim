@@ -52,7 +52,7 @@
       <ChannelPanel />
     </q-drawer>
 
-    <q-page-container class="custom-page-container" :class="{ expanded: isTerminalHidden }">
+    <q-page-container class="custom-page-container">
       <router-view />
     </q-page-container>
 
@@ -74,61 +74,110 @@
 
 <script lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import CommandPrompt from '../components/CommandPrompt.vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useQuasar } from 'quasar'
 import ChannelPanel from '../components/ChannelPanel.vue'
 import MessageInput from '../components/MessageInput.vue'
-// import TypingIndicator from '../components/TypingIndicator.vue'
+import { api } from 'src/boot/axios'
 
 export default {
   components: {
-    CommandPrompt,
     ChannelPanel,
     MessageInput,
-    // TypingIndicator
   },
   setup() {
     const leftDrawerOpen = ref(false)
     const userStatus = ref('online')
     const currentUser = ref('user123')
     const currentChannel = ref('general')
-    // const typingUsers = ref([]) // track who is typing
-    
+
     const channels = ref([
       { id: '1', name: 'general', type: 'public', unread: 0 },
       { id: '2', name: 'random', type: 'public', unread: 3 },
-      { id: '3', name: 'private-room', type: 'private', unread: 1 }
+      { id: '3', name: 'private-room', type: 'private', unread: 1 },
     ])
+
+    const router = useRouter()
+    const route = useRoute()
+    const $q = useQuasar()
 
     const toggleLeftDrawer = () => {
       leftDrawerOpen.value = !leftDrawerOpen.value
     }
 
-    const handleChannelSelect = (channelId) => {
-      console.log('todo: switch to channel:', channelId)
+    const handleChannelSelect = (channelId: string | number) => {
+      router.push(`/channels/${channelId}`)
     }
 
-    const handleSendMessage = (message) => {
-      console.log('todo: send message:', message)
-      // todo: send via websocket or api
+    const handleSendMessage = async (message: string) => {
+      const channelIdParam = route.params.channelId
+      const channelId = Number(channelIdParam)
+
+      if (!channelId || Number.isNaN(channelId)) {
+        $q.notify({
+          type: 'warning',
+          message: 'Najprv si vyber kanál vľavo v zozname',
+        })
+        return
+      }
+
+      try {
+        // príkazy začínajú na "/"
+        if (message.startsWith('/')) {
+          const { data } = await api.post('/ws/command', {
+            channelId,
+            content: message,
+          })
+
+          const msg =
+            (data && (data.message || data.result || data.info)) ||
+            'Príkaz bol spracovaný'
+
+          $q.notify({
+            type: 'positive',
+            message: msg,
+          })
+        } else {
+          // bežná správa
+          const { data } = await api.post('/ws/message', {
+            channelId,
+            content: message,
+          })
+          console.log('message sent', data)
+          // TODO: neskôr ju pridáme realtime do ChatPage cez Socket.IO klienta
+        }
+      } catch (error: any) {
+        console.error('send failed', error)
+        $q.notify({
+          type: 'negative',
+          message:
+            error?.response?.data?.message ||
+            'Nepodarilo sa odoslať správu / príkaz',
+        })
+      }
     }
 
-    const handleCommand = (command) => {
-      console.log('todo: execute command:', command)
-      // todo: handle commands like /join, /leave, etc
-    }
+    const handleTyping = async (isTyping: boolean) => {
+      const channelIdParam = route.params.channelId
+      const channelId = Number(channelIdParam)
 
-    const handleTyping = (isTyping) => {
-      console.log('todo: handle typing:', isTyping)
-      // todo: broadcast typing status to other users via websocket
+      if (!channelId || Number.isNaN(channelId)) {
+        return
+      }
+
+      try {
+        await api.post('/ws/typing', {
+          channelId,
+          isTyping,
+        })
+      } catch (error) {
+        console.error('typing failed', error)
+      }
     }
 
     const toggleMembers = () => {
       router.push('/list')
     }
-
-    
-    const router = useRouter();
 
     const Settings = () => {
       router.push('/settings')
@@ -144,17 +193,15 @@ export default {
       currentUser,
       currentChannel,
       channels,
-      // typingUsers,
       toggleLeftDrawer,
       Settings,
       Profile,
       handleChannelSelect,
       handleSendMessage,
-      handleCommand,
       handleTyping,
-      toggleMembers
+      toggleMembers,
     }
-  }
+  },
 }
 </script>
 
@@ -200,13 +247,4 @@ export default {
   padding: 0 16px 8px 16px;
 }
 
-.command-prompt-wrapper {
-  background-color: $command-line-bg;
-  border-top: 1px solid $border-light;
-  
-  &.collapsed {
-    height: 0px;
-    overflow: hidden;
-  }
-}
 </style>
