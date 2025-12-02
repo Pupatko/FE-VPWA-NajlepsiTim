@@ -1,29 +1,16 @@
 <template>
   <q-list class="channel-list">
-    
-    <!-- Loading state -->
     <div v-if="loading" class="q-pa-md text-center">
       <q-spinner color="primary" size="40px" />
       <div class="q-mt-sm text-grey-6">Loading channels...</div>
     </div>
 
-    <!-- Empty state -->
-    <div
-      v-else-if="!loading && (filteredChannels?.length ?? 0) === 0"
-      class="q-pa-md text-center"
-    >
+    <div v-else-if="!loading && filteredChannels.length === 0" class="q-pa-md text-center">
       <q-icon name="chat_bubble_outline" size="48px" color="grey-6" />
       <div class="q-mt-sm text-grey-6">No channels found</div>
-      <q-btn
-        flat
-        color="primary"
-        label="Create Channel"
-        class="q-mt-md"
-        @click="$router.push('/create-channel')"
-      />
+      <q-btn flat color="primary" label="Create Channel" class="q-mt-md" @click="goCreateChannel" />
     </div>
 
-    <!-- Channels list -->
     <q-item
       v-for="channel in filteredChannels"
       :key="channel.id"
@@ -34,10 +21,7 @@
       @click="selectChannel(channel.id)"
     >
       <q-item-section avatar>
-        <q-icon
-          :name="channel.private ? 'lock' : 'tag'"
-          :color="channel.private ? 'amber' : 'blue-4'"
-        />
+        <q-icon :name="channel.private ? 'lock' : 'tag'" :color="channel.private ? 'amber' : 'blue-4'" />
       </q-item-section>
 
       <q-item-section>
@@ -48,101 +32,55 @@
       </q-item-section>
 
       <q-item-section side v-if="channel.isOwner">
-        <q-badge color="amber" text-color="black">
-          Owner
-        </q-badge>
+        <q-badge color="amber" text-color="black">Owner</q-badge>
       </q-item-section>
     </q-item>
-
   </q-list>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useQuasar } from 'quasar'
-import channelService from 'src/services/channel.service'
+import store from 'src/store'
+import type { Channel } from 'src/store/modules/channels'
 
 interface Props {
-  showPublicAll?: boolean
   activeType?: 'public' | 'private'
 }
+const props = defineProps<Props>()
 
-const props = withDefaults(defineProps<Props>(), {
-  showPublicAll: false,
-  activeType: 'public'
-})
-
-const channels = ref<any[]>([])
-const loading = ref(false)
 const router = useRouter()
 const route = useRoute()
-const $q = useQuasar()
 
-// Active channel from route
-const activeChannelId = computed(() => {
-  return route.params.channelId ? Number(route.params.channelId) : null
-})
+const loading = ref(false)
 
-// Filter channels safely
+// reactive channels from store
+const channels = computed(() => store.state.channels.list as Channel[])
+
+const activeChannelId = computed(() => route.params.channelId ? Number(route.params.channelId) : null)
+
 const filteredChannels = computed(() => {
-  if (!channels.value || !Array.isArray(channels.value)) return []
-
-  if (props.activeType === 'private') {
-    return channels.value.filter((c: any) => c.private === true)
-  }
-
-  return channels.value.filter((c: any) => c.private === false)
+  const type = props.activeType ?? 'public'
+  return channels.value.filter(c => type === 'private' ? c.private : !c.private)
 })
 
-// Load channels
+const selectChannel = (channelId: number) => router.push(`/channels/${channelId}`)
+const goCreateChannel = () => router.push('/create-channel')
+
+// load channels on mount
 const loadChannels = async () => {
   loading.value = true
-  try {
-    const data = await channelService.getMyChannels()
-
-    if (!Array.isArray(data)) {
-      console.error('❌ Backend did not return array:', data)
-      channels.value = []
-    } else {
-      channels.value = data
-    }
-
-    console.log('✅ Channels loaded:', channels.value)
-
-  } catch (error: any) {
-    console.error('❌ Failed to load channels:', error)
-
-    $q.notify({
-      type: 'negative',
-      message: error?.response?.data?.message || 'Failed to load channels'
-    })
-    channels.value = []
-  } finally {
-    loading.value = false
-  }
+  await store.dispatch('channels/fetchMyChannels')
+  loading.value = false
 }
 
-// Select channel
-const selectChannel = (channelId: number) => {
-  router.push(`/channels/${channelId}`)
-}
+onMounted(loadChannels)
 
-// Reload on props update (optional)
-watch(() => props.activeType, () => {
-  console.log('Channel type changed →', props.activeType)
-})
-
-// Load on mount
-onMounted(() => loadChannels())
-
-// Expose reload method
-defineExpose({
-  reload: loadChannels
-})
+// Socket listenery sú CENTRÁLNE v boot/socket.ts
+// Nepotrebujeme ich tu duplikovať
 </script>
 
-<style lang="scss" scoped>
+<style scoped lang="scss">
 .channel-list {
   background-color: $sidebar-bg;
   color: $text-inverse;
