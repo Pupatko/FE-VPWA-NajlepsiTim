@@ -30,7 +30,10 @@ const routes: RouteRecordRaw[] = [
     { path: 'settings', component: () => import('pages/SettingsPage.vue') },
     { path: 'profile', component: () => import('pages/ProfilePage.vue') },
     { path: 'public-channels', component: () => import('pages/ViewPublicChannelsPage.vue') },
-    { path: 'list', component: () => import('pages/MembersPage.vue') }
+    {
+      path: 'channels/:channelId/members',
+      component: () => import('pages/MembersPage.vue'),
+    }
   ],
   },
   // error page

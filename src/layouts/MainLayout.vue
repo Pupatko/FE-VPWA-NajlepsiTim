@@ -149,6 +149,11 @@ export default {
             content: message,
           })
 
+          if (message.startsWith('/list')) {
+            router.push(`/channels/${channelId}/members`)
+            return
+          }
+
           const msg =
             (data && (data.message || data.result || data.info)) ||
             'Príkaz bol spracovaný'
@@ -202,8 +207,10 @@ export default {
     }
 
     const toggleMembers = () => {
-      router.push('/list')
+      const channelId = route.params.channelId
+      if (channelId) router.push(`/channels/${channelId}/members`)
     }
+
 
     const Settings = () => {
       router.push('/settings')
