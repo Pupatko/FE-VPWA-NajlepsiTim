@@ -144,7 +144,6 @@ export default {
         // PRÍKAZY (/join, /invite, /kick, ...)
         if (message.startsWith('/')) {
           const { data } = await api.post('/ws/command', {
-            channelId,
             content: message,
           })
 
