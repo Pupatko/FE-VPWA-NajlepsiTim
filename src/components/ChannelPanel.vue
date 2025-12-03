@@ -1,8 +1,8 @@
 <template>
-  <div class="column fit channel-panel">
+  <div class="column fit channel-panel q-pb-md">
     <channel-panel-header :show-public="showPublicAll" @toggle-public="togglePublicAll" />
-    <channel-panel-type @type-change="setType"/>
-    <div class="col-grow">
+    <channel-panel-type @type-change="setType" />
+    <div class="col-grow q-pt-sm">
       <channel-panel-list :show-public-all="showPublicAll" :active-type="activeType" />
     </div>
   </div>
@@ -34,5 +34,6 @@ const setType = (type: 'public' | 'private') => {
   display: flex;
   flex-direction: column;
   border-right: 1px solid $border-light;
+  gap: 4px;
 }
 </style>
