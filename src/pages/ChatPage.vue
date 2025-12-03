@@ -66,7 +66,8 @@ const $q = useQuasar()
 const route = useRoute()
 
 const internalInstance = getCurrentInstance()
-const socket = internalInstance?.appContext.config.globalProperties.$socket as any
+const socket = internalInstance?.appContext.config.globalProperties
+  .$socket as any
 
 const currentUser = ref<string>('me')
 const currentChannel = ref<string>('') // názov kanála z backendu
@@ -76,6 +77,9 @@ const hasMore = ref(true)
 const isLoading = ref(false)
 
 const infiniteScrollRef = ref<any | null>(null)
+const messagesContainer = ref<HTMLElement | null>(null)
+
+const PAGE_LIMIT = 20
 
 const channelId = computed(() => {
   const id = Number(route.params.channelId)
@@ -95,10 +99,13 @@ async function loadMeta() {
     if (channelId.value !== null) {
       const channel = await channelService.getChannel(channelId.value)
       currentChannel.value = channel.name
+    } else {
+      currentChannel.value = ''
     }
   } catch (error) {
     console.error('Failed to load channel info', error)
-    currentChannel.value = channelId.value !== null ? `channel-${channelId.value}` : ''
+    currentChannel.value =
+      channelId.value !== null ? `channel-${channelId.value}` : ''
   }
 
   messageNotifications.init($q)
@@ -106,13 +113,13 @@ async function loadMeta() {
 
 // načítanie jednej strany správ z backendu
 async function fetchMessages(page: number) {
-  if (channelId.value === null) return
+  if (channelId.value === null) return []
 
   const response = await api.get<{
     data: BackendMessage[]
-    meta: { page: number; limit: number; hasMore: boolean }
+    meta?: { page: number; limit: number; hasMore: boolean }
   }>(`/channels/${channelId.value}/messages`, {
-    params: { page, limit: 20 },
+    params: { page, limit: PAGE_LIMIT },
   })
 
   const backendMessages = response.data.data
@@ -128,22 +135,55 @@ async function fetchMessages(page: number) {
   if (page === 1 && messages.value.length === 0) {
     messages.value = mapped
   } else {
+    // pridáme správy hore (staršie)
     messages.value.unshift(...mapped)
   }
 
-  hasMore.value = response.data.meta.hasMore
+  // 🔥 hasMore určujeme podľa toho, či prišlo plné množstvo správ
+  hasMore.value = backendMessages.length === PAGE_LIMIT
+
+  return mapped
 }
 
 // handler pre <q-infinite-scroll>
 const onLoad = async (index: number, done: () => void) => {
-  if (isLoading.value || !hasMore.value) {
+  if (isLoading.value) {
+    done()
+    return
+  }
+
+  // ak už určite nemáme viac dát, môžeme done() aj stopnúť
+  if (!hasMore.value) {
     done()
     return
   }
 
   isLoading.value = true
+
+  let oldHeight = 0
+  let oldScrollTop = 0
+
+  if (messagesContainer.value) {
+    oldHeight = messagesContainer.value.scrollHeight
+    oldScrollTop = messagesContainer.value.scrollTop
+  }
+
   try {
-    await fetchMessages(index)
+    const loaded = await fetchMessages(index)
+
+    // ak už nič neprišlo, zastav infinite scroll
+    if (!loaded.length) {
+      hasMore.value = false
+    }
+
+    // FIX skrolovania pri reverse chate:
+    if (messagesContainer.value) {
+      const newHeight = messagesContainer.value.scrollHeight
+
+      // zachováme pozíciu tak, aby user neodskočil
+      messagesContainer.value.scrollTop =
+        oldScrollTop + (newHeight - oldHeight)
+    }
   } catch (error) {
     console.error('Failed to load messages', error)
     $q.notify({
@@ -202,6 +242,12 @@ function handleSocketTyping(payload: any) {
 onMounted(async () => {
   await loadMeta()
 
+  // inicialne načítanie správ
+  if (infiniteScrollRef.value) {
+    infiniteScrollRef.value.reset()
+    infiniteScrollRef.value.resume()
+  }
+
   if (socket) {
     socket.on('message', handleSocketMessage)
     socket.on('typing', handleSocketTyping)
@@ -225,7 +271,10 @@ watch(
       if (latestMessage.author !== currentUser.value) {
         messageNotifications.notifyNewMessage(
           latestMessage as any,
-          currentChannel.value || (channelId.value !== null ? `channel-${channelId.value}` : 'channel'),
+          currentChannel.value ||
+            (channelId.value !== null
+              ? `channel-${channelId.value}`
+              : 'channel'),
           currentUser.value
         )
       }
