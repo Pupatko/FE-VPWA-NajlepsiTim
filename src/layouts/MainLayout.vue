@@ -62,17 +62,24 @@
           @send="handleSendMessage"
           @typing="handleTyping" 
         />
-        
-        <!-- typing indicator below input -->
-        <!-- placeholder for typing indicator -->
       </div>
-    
     </q-footer>
+
+    <!-- 🔥 FLOATING SCROLL-TO-BOTTOM BUTTON -->
+    <q-btn
+      v-if="showScrollToBottom && isInChat"
+      fab
+      flat
+      unelevated
+      icon="keyboard_arrow_down"
+      class="scroll-bottom-btn scroll-bottom-styled"
+      @click="scrollToBottom"
+    />
   </q-layout>
 </template>
 
 <script lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import ChannelPanel from '../components/ChannelPanel.vue'
@@ -89,27 +96,52 @@ export default {
     const leftDrawerOpen = ref(false)
     const userStatus = ref('online')
     const currentUser = ref('user123')
-    const currentChannel = ref('') // už nie 'general' napevno
-
-    const channels = ref([
-      { id: '1', name: 'general', type: 'public', unread: 0 },
-      { id: '2', name: 'random', type: 'public', unread: 3 },
-      { id: '3', name: 'private-room', type: 'private', unread: 1 },
-    ])
+    const currentChannel = ref('')
 
     const router = useRouter()
     const route = useRoute()
     const $q = useQuasar()
 
+    const showScrollToBottom = ref(false)
+
+    // 🔥 Funkcia ktorá prescrolluje na spodok
+    const scrollToBottom = () => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth'
+      })
+    }
+
+    // 🔥 Sme v chat kanáli?
+    const isInChat = computed(() => route.path.startsWith('/channels/'))
+
+    // 🔥 Listener na window scroll – funguje aj pri QLayout, QPageContainer, QFooter, router-view
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + window.innerHeight
+      const fullHeight = document.documentElement.scrollHeight
+
+      // zobrazíme button, ak je user hore viac ako 200px
+      showScrollToBottom.value = fullHeight - scrollPosition > 200
+    }
+
+    onMounted(() => {
+      window.addEventListener('scroll', handleScroll)
+      updateCurrentChannelFromRoute()
+    })
+
+    onUnmounted(() => {
+      window.removeEventListener('scroll', handleScroll)
+    })
+
     const toggleLeftDrawer = () => {
       leftDrawerOpen.value = !leftDrawerOpen.value
     }
 
-    const handleChannelSelect = (channelId: string | number) => {
+    const handleChannelSelect = (channelId) => {
       router.push(`/channels/${channelId}`)
     }
 
-    // 🔥 Funkcia, ktorá načíta názov kanála podľa ID z route
+    // 🔥 Načítanie názvu kanála podľa ID
     const updateCurrentChannelFromRoute = async () => {
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
@@ -128,7 +160,11 @@ export default {
       }
     }
 
-    const handleSendMessage = async (message: string) => {
+    watch(() => route.params.channelId, () => {
+      updateCurrentChannelFromRoute()
+    })
+
+    const handleSendMessage = async (message) => {
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
 
@@ -141,58 +177,41 @@ export default {
       }
 
       try {
-        // PRÍKAZY (/join, /invite, /kick, ...)
         if (message.startsWith('/')) {
-          const { data } = await api.post('/ws/command', {
-            content: message,
-          })
+          const { data } = await api.post('/ws/command', { content: message })
 
           if (message.startsWith('/list')) {
             router.push(`/channels/${channelId}/members`)
             return
           }
 
-          const msg =
-            (data && (data.message || data.result || data.info)) ||
-            'Príkaz bol spracovaný'
-
           $q.notify({
             type: 'positive',
-            message: msg,
+            message: data.message || data.result || 'Príkaz bol spracovaný',
           })
 
-          // ak príkaz vrátil channelId (napr. /join), presmeruj do kanála
-          if (data && data.channelId) {
+          if (data.channelId) {
             router.push(`/channels/${data.channelId}`)
           }
 
           return
         }
 
-        // BEŽNÁ SPRÁVA
-        const { data } = await api.post('/ws/message', {
-          channelId,
-          content: message,
-        })
-        console.log('message sent', data)
-      } catch (error: any) {
-        console.error('send failed', error)
+        await api.post('/ws/message', { channelId, content: message })
+
+      } catch (error) {
         $q.notify({
           type: 'negative',
-          message:
-            error?.response?.data?.message ||
-            'Nepodarilo sa odoslať správu / príkaz',
+          message: error?.response?.data?.message || 'Nepodarilo sa odoslať správu',
         })
       }
     }
 
-    const handleTyping = async (isTyping: boolean) => {
+    const handleTyping = async (isTyping) => {
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
 
-      if (!channelId || Number.isNaN(channelId)) {
-        return
-      }
+      if (!channelId || Number.isNaN(channelId)) return
 
       try {
         await api.post('/ws/typing', {
@@ -209,34 +228,14 @@ export default {
       if (channelId) router.push(`/channels/${channelId}/members`)
     }
 
-
-    const Settings = () => {
-      router.push('/settings')
-    }
-
-    const Profile = () => {
-      router.push('/profile')
-    }
-
-    // 🔄 Pri prvom načítaní layoutu nastav názov kanála podľa aktuálnej route
-    onMounted(() => {
-      updateCurrentChannelFromRoute()
-    })
-
-    // 🔄 Pri každom prepnutí kanála (zmena route parametra) obnov názov
-    watch(
-      () => route.params.channelId,
-      () => {
-        updateCurrentChannelFromRoute()
-      }
-    )
+    const Settings = () => router.push('/settings')
+    const Profile = () => router.push('/profile')
 
     return {
       leftDrawerOpen,
       userStatus,
       currentUser,
       currentChannel,
-      channels,
       toggleLeftDrawer,
       Settings,
       Profile,
@@ -244,6 +243,9 @@ export default {
       handleSendMessage,
       handleTyping,
       toggleMembers,
+      showScrollToBottom,
+      scrollToBottom,
+      isInChat
     }
   },
 }
@@ -259,10 +261,6 @@ export default {
   background-color: $chat-bg;
   color: $text-primary;
   padding-bottom: 180px;
-  
-  &.expanded {
-    flex: 1 1 auto; /* rozťahne sa na celú výšku */
-  }
 }
 
 .footer-container {
@@ -281,7 +279,21 @@ export default {
   position: relative;
 }
 
-.typing-indicator-container {
-  padding: 0 16px 8px 16px;
+.scroll-bottom-styled {
+  background: white !important;
+  border: 2px solid #9b4dff !important; /* tvoje fialové PS */
+  color: #9b4dff !important; /* ikonka fialová */
 }
+
+.scroll-bottom-btn {
+  position: fixed;
+  bottom: 95px; 
+  right: 24px;
+  z-index: 2000;
+
+  width: 56px; 
+  height: 56px;
+  border-radius: 50%;
+}
+
 </style>
