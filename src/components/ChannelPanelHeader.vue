@@ -1,8 +1,8 @@
 <template>
-  <div class="q-pa-sm flex-col channel-panel-header">
+  <div class="channel-panel-header q-pa-md column q-gutter-xs text-white">
 
-    <div class="flex items-center justify-between">
-      <div class="text-h6 text-white">Channels</div>
+    <div class="row items-center justify-between">
+      <div class="text-h6 text-weight-bold">Channels</div>
       <q-btn
         flat
         dense
@@ -15,10 +15,10 @@
     </div>
 
     <div
-      class="text-subtitle2 text-blue-4 cursor-pointer q-mt-xs hover:underline"
+      class="text-caption text-blue-2 cursor-pointer q-mt-xs hover-underline"
       @click="viewAll"
     >
-      {{ 'View all public channels' }}
+      View all public channels
     </div>
   </div>
 </template>
@@ -44,8 +44,9 @@ const viewAll = () => {
 .channel-panel-header {
   background-color: $dark;
   border-bottom: 1px solid $border-light;
-  .hover\:underline:hover {
-    text-decoration: underline;
-  }
+}
+
+.hover-underline:hover {
+  text-decoration: underline;
 }
 </style>

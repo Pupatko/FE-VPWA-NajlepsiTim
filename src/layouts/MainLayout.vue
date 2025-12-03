@@ -1,7 +1,7 @@
 <template>
-  <q-layout view="lHh Lpr lFf" style="background: $chat-bg">
-    <q-header elevated>
-      <q-toolbar>
+  <q-layout view="lHh Lpr lFf" class="bg-grey-1">
+    <q-header elevated class="bg-primary text-white">
+      <q-toolbar class="q-px-md q-py-sm">
 
         <!-- left side with menu toggle -->
         <q-btn 
@@ -14,25 +14,24 @@
           aria-label="Toggle menu"
         />
         
-        <q-toolbar-title>
-          # {{ currentChannel }}
+        <q-toolbar-title class="text-weight-bold">
+          # {{ currentChannel || 'Choose a channel' }}
         </q-toolbar-title>
 
         <!-- right side -->
-        <div class="q-gutter-x-md">
+        <div class="row items-center q-gutter-sm">
           <q-btn
             flat
             round
+            dense
             icon="account_circle"
             @click="Profile"
             aria-label="Profile"
           />
-        </div>
-
-        <div class="q-gutter-x-md">
           <q-btn
             flat
             round
+            dense
             icon="settings"
             @click="Settings"
             aria-label="Settings"
@@ -52,15 +51,15 @@
       <ChannelPanel />
     </q-drawer>
 
-    <q-page-container class="custom-page-container">
+    <q-page-container class="custom-page-container q-px-md q-pt-md">
       <router-view />
     </q-page-container>
 
     <q-footer class="footer-container">
-      <div class="message-input-wrapper">
-        <MessageInput 
+      <div class="message-input-wrapper q-px-md q-py-sm">
+        <MessageInput
           @toggle-members="toggleMembers"
-          @send="handleSendMessage" 
+          @send="handleSendMessage"
           @typing="handleTyping" 
         />
         
@@ -267,20 +266,14 @@ export default {
   }
 }
 
-.app-title {
-  font-size: 20px;
-  font-weight: bold;
-  color: white;
-}
-
 .footer-container {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  background-color: transparent;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  background-color: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.12);
 }
 
 .message-input-wrapper {

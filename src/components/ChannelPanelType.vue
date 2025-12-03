@@ -1,15 +1,21 @@
 <template>
-  <div class="q-pa-sm flex justify-around channel-type">
+  <div class="channel-type bg-dark q-px-sm q-py-sm row items-center q-gutter-sm">
     <q-btn
       :color="activeType === 'public' ? 'channel-active' : 'grey-6'"
       label="Public"
       flat
+      no-caps
+      dense
+      class="col rounded-borders"
       @click="setType('public')"
     />
     <q-btn
       :color="activeType === 'private' ? 'channel-active' : 'grey-6'"
       label="Private"
       flat
+      no-caps
+      dense
+      class="col rounded-borders"
       @click="setType('private')"
     />
   </div>
@@ -35,7 +41,7 @@ const setType = (type: 'public' | 'private') => {
 .channel-type {
   background-color: $sidebar-bg;
   border-bottom: 1px solid $border-light;
-  
+
   .q-btn {
     color: $text-inverse;
   }

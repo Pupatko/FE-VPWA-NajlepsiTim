@@ -1,26 +1,29 @@
 <template>
-  <div class="message-input-container">
+  <div class="message-input-container q-pa-md">
     <q-input
       v-model="messageText"
-      outlined
-      placeholder="type a message..."
-      class="message-input"
+      filled
+      dense
+      placeholder="Type a message..."
+      class="message-input rounded-borders shadow-1"
+      input-class="text-body1"
       @keyup.enter="sendMessage"
       @keyup="handleTyping"
-      bg-color="white"
+      clearable
+      color="primary"
     >
 
       <template v-slot:prepend>
-        <div class="flex items-center q-gutter-sm">
-
+        <div class="row items-center q-gutter-sm">
           <q-btn
             flat
             round
             dense
-            icon="account_circle"
+            icon="group"
             color="primary"
             @click="toggleMembers"
-           >
+            aria-label="Show channel members"
+          >
             <q-tooltip>Show channel members</q-tooltip>
           </q-btn>
         </div>
@@ -28,14 +31,15 @@
 
       <!-- 🔹 APPEND: Send tlačidlo -->
       <template v-slot:append>
-        <q-btn 
-          flat 
-          round 
-          dense 
+        <q-btn
+          flat
+          round
+          dense
           icon="send"
           color="primary"
           @click="sendMessage"
           :disable="!messageText.trim()"
+          aria-label="Send message"
         />
       </template>
     </q-input>
@@ -43,7 +47,7 @@
 </template>
 
 <script lang="ts">
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 
 export default {
   emits: ['send', 'typing', 'toggle-members'],
@@ -76,7 +80,7 @@ export default {
       messageText,
       sendMessage,
       handleTyping,
-      toggleMembers
+      toggleMembers,
     }
   }
 }
@@ -84,25 +88,11 @@ export default {
 
 <style lang="scss" scoped>
 .message-input-container {
-  padding: 16px;
   background-color: $message-area-bg;
 }
 
 .message-input {
   width: 100%;
-  padding-left: 20px;
-
-  ::v-deep .q-field__control {
-    border-radius: $border-radius;
-  }
-
-  ::v-deep .q-field__native {
-    color: $text-primary;
-  }
-
-  .toggle-cmd-btn {
-    margin-right: 8px;
-  }
 }
 
 @media (max-width: 768px) {

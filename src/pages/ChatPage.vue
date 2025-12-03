@@ -1,6 +1,6 @@
 <template>
-  <q-page class="chat-page">
-    <div class="messages-area" ref="messagesContainer">
+  <q-page class="chat-page q-pa-none">
+    <div class="messages-area q-pa-md" ref="messagesContainer">
       <q-infinite-scroll
         ref="infiniteScrollRef"
         @load="onLoad"
