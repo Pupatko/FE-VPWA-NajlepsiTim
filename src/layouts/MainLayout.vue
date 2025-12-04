@@ -168,6 +168,31 @@ export default {
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
 
+      if (message.startsWith('/join')) {
+        try {
+          const { data } = await api.post('/ws/command', {
+            content: message
+          })
+
+          $q.notify({
+            type: 'positive',
+            message: data.message || 'Pripojené do kanála',
+          })
+
+          if (data.channelId) {
+            router.push(`/channels/${data.channelId}`)
+          }
+
+        } catch (error) {
+          $q.notify({
+            type: 'negative',
+            message: error?.response?.data?.message || 'Join príkaz zlyhal',
+          })
+        }
+
+        return
+      }
+
       if (!channelId || Number.isNaN(channelId)) {
         $q.notify({
           type: 'warning',
@@ -178,15 +203,12 @@ export default {
 
       try {
         if (message.startsWith('/')) {
+          const { data } = await api.post('/ws/command', {
+            content: message,
+            channelId
+          })
 
-          const isJoinCommand = message.startsWith('/join')
-
-          const payload = isJoinCommand
-            ? { content: message }                    // JOIN bez channelId
-            : { content: message, channelId }         // všetko ostatné s channelId
-
-          const { data } = await api.post('/ws/command', payload)
-
+          // špeciálne pre /list
           if (message.startsWith('/list')) {
             router.push(`/channels/${channelId}/members`)
             return
@@ -204,7 +226,6 @@ export default {
           return
         }
 
-        // 🔥 klasická správa
         await api.post('/ws/message', { channelId, content: message })
 
       } catch (error) {
