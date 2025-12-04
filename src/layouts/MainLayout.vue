@@ -178,7 +178,14 @@ export default {
 
       try {
         if (message.startsWith('/')) {
-          const { data } = await api.post('/ws/command', { content: message })
+
+          const isJoinCommand = message.startsWith('/join')
+
+          const payload = isJoinCommand
+            ? { content: message }                    // JOIN bez channelId
+            : { content: message, channelId }         // všetko ostatné s channelId
+
+          const { data } = await api.post('/ws/command', payload)
 
           if (message.startsWith('/list')) {
             router.push(`/channels/${channelId}/members`)
@@ -197,6 +204,7 @@ export default {
           return
         }
 
+        // 🔥 klasická správa
         await api.post('/ws/message', { channelId, content: message })
 
       } catch (error) {
@@ -206,6 +214,7 @@ export default {
         })
       }
     }
+
 
     const handleTyping = async (isTyping) => {
       const channelIdParam = route.params.channelId
