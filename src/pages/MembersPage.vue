@@ -20,7 +20,7 @@
       <q-card-section>
         <q-list bordered separator>
 
-          <q-item v-for="member in members" :key="member.nick_name">
+          <q-item v-for="member in members" :key="member.id">
 
             <!-- avatar -->
             <q-item-section avatar>
@@ -71,6 +71,7 @@ const router = useRouter()
 const route = useRoute()
 
 interface Member {
+  id: number
   nick_name: string
   owner: boolean
   kick_count: number
@@ -100,6 +101,7 @@ async function loadMembers() {
 }
 
 onMounted(loadMembers)
+
 </script>
 
 <style scoped lang="scss">
