@@ -101,7 +101,24 @@ const deleteChannel = () => {
     color: 'negative'
   }).onOk(async () => {
     try {
-      await api.post('/quit', { channelId: props.channelId })
+      const socket = (window as any).$socket as any
+      if (!socket || !socket.connected) {
+        throw new Error('Socket nie je pripojený')
+      }
+
+      await new Promise((resolve, reject) => {
+        socket.emit(
+          'command:quit',
+          { channelId: props.channelId },
+          (response: any) => {
+            if (!response?.ok) {
+              reject(new Error(response?.error || 'Delete failed'))
+              return
+            }
+            resolve(response?.result)
+          }
+        )
+      })
 
       if (myChannels?.value) {
         myChannels.value = myChannels.value.filter(
@@ -114,9 +131,11 @@ const deleteChannel = () => {
         message: `Channel ${props.name} deleted`,
         icon: 'delete'
       })
+
+      router.push('/')
     } catch (err) {
       console.error(err)
-      $q.notify({ type: 'negative', message: 'Failed to delete channel', icon: 'error' })
+      $q.notify({ type: 'negative', message: err?.message || 'Failed to delete channel', icon: 'error' })
     }
   })
 }

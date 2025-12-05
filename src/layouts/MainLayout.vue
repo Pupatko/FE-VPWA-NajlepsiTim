@@ -204,6 +204,38 @@ export default {
           return
         }
 
+        // /quit via socket
+        if (isCommand && trimmed.startsWith('/quit')) {
+          if (!socket) {
+            $q.notify({ type: 'negative', message: 'WebSocket nie je pripojeny.' })
+            return
+          }
+
+          if (!channelId || Number.isNaN(channelId)) {
+            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            return
+          }
+
+          socket.emit(
+            'command:quit',
+            { channelId },
+            (response: any) => {
+              if (!response?.ok) {
+                $q.notify({
+                  type: 'negative',
+                  message: response?.error || 'Chyba pri /quit',
+                })
+                return
+              }
+
+              $q.notify({ type: 'positive', message: response.result?.message || 'Channel deleted' })
+              router.push('/')
+            }
+          )
+
+          return
+        }
+
         // other commands (still REST)
         if (isCommand) {
           if (!channelId || Number.isNaN(channelId)) {

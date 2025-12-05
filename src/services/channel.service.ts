@@ -80,7 +80,25 @@ class ChannelService {
    * Delete/quit channel (owner only)
    */
   async quitChannel(channelId: number): Promise<void> {
-    await api.post('/quit', { channelId })
+    const socket = (window as any).$socket as any
+
+    if (!socket || typeof socket.emit !== 'function' || !socket.connected) {
+      throw new Error('Socket is not connected')
+    }
+
+    await new Promise((resolve, reject) => {
+      socket.emit(
+        'command:quit',
+        { channelId },
+        (response: any) => {
+          if (!response?.ok) {
+            reject(new Error(response?.error || 'Quit failed'))
+            return
+          }
+          resolve(response?.result)
+        }
+      )
+    })
   }
 }
 
