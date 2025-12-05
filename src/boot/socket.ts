@@ -1,6 +1,7 @@
 ﻿import { boot } from 'quasar/wrappers'
 import { io, Socket } from 'socket.io-client'
 import store from 'src/store'
+import { Notify } from 'quasar'
 
 let socket: Socket | null = null
 
@@ -71,6 +72,20 @@ function attachListeners(s: Socket) {
 
       case 'channel_invited':
         store.dispatch('channels/handleChannelInvited', payload)
+        break
+
+      case 'channel_revoked':
+        store.dispatch('channels/handleChannelRemoved', payload.channelId)
+        Notify.create({
+          type: 'negative',
+          message: `Bol si odstránený z kanála #${payload.name || payload.channelId}`,
+          caption: 'channel revoked',
+        })
+        try {
+          window.location.href = '/'
+        } catch (e) {
+          console.warn('redirect after revoke failed', e)
+        }
         break
 
       case 'channel_user_left':

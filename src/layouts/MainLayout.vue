@@ -236,6 +236,44 @@ export default {
           return
         }
 
+        // /revoke via socket
+        if (isCommand && trimmed.startsWith('/revoke')) {
+          if (!socket) {
+            $q.notify({ type: 'negative', message: 'WebSocket nie je pripojeny.' })
+            return
+          }
+
+          if (!channelId || Number.isNaN(channelId)) {
+            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            return
+          }
+
+          const parts = trimmed.split(/\s+/)
+          const nickname = parts[1]
+
+          if (!nickname) {
+            $q.notify({ type: 'warning', message: 'Pouzitie: /revoke nickname' })
+            return
+          }
+
+          socket.emit(
+            'command:revoke',
+            { channelId, nickname },
+            (response: any) => {
+              if (!response?.ok) {
+                $q.notify({
+                  type: 'negative',
+                  message: response?.error || 'Chyba pri /revoke',
+                })
+                return
+              }
+              $q.notify({ type: 'positive', message: response.result?.message || 'User revoked' })
+            }
+          )
+
+          return
+        }
+
         // other commands (still REST)
         if (isCommand) {
           if (trimmed.startsWith('/invite')) {
