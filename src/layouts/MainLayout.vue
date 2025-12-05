@@ -274,6 +274,44 @@ export default {
           return
         }
 
+        // /kick via socket
+        if (isCommand && trimmed.startsWith('/kick')) {
+          if (!socket) {
+            $q.notify({ type: 'negative', message: 'WebSocket nie je pripojeny.' })
+            return
+          }
+
+          if (!channelId || Number.isNaN(channelId)) {
+            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            return
+          }
+
+          const parts = trimmed.split(/\s+/)
+          const nickname = parts[1]
+
+          if (!nickname) {
+            $q.notify({ type: 'warning', message: 'Pouzitie: /kick nickname' })
+            return
+          }
+
+          socket.emit(
+            'command:kick',
+            { channelId, nickname },
+            (response: any) => {
+              if (!response?.ok) {
+                $q.notify({
+                  type: 'negative',
+                  message: response?.error || 'Chyba pri /kick',
+                })
+                return
+              }
+              $q.notify({ type: 'positive', message: response.result?.message || 'User kicked' })
+            }
+          )
+
+          return
+        }
+
         // other commands (still REST)
         if (isCommand) {
           if (trimmed.startsWith('/invite')) {

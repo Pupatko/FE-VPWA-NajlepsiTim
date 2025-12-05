@@ -17,10 +17,32 @@ export interface Channel {
 
 export interface ChannelsState {
   list: Channel[]
+  pendingInvites: Channel[]
+}
+
+const loadPendingInvites = (): Channel[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem('pendingInvites')
+    return raw ? (JSON.parse(raw) as Channel[]) : []
+  } catch (e) {
+    console.warn('Failed to load pending invites', e)
+    return []
+  }
+}
+
+const persistPendingInvites = (invites: Channel[]) => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem('pendingInvites', JSON.stringify(invites))
+  } catch (e) {
+    console.warn('Failed to persist pending invites', e)
+  }
 }
 
 const state = (): ChannelsState => ({
-  list: []
+  list: [],
+  pendingInvites: loadPendingInvites()
 })
 
 const mutations = {
@@ -54,6 +76,17 @@ const mutations = {
         ...state.list.slice(idx + 1)
       ]
     }
+  },
+  ADD_PENDING_INVITE(state: ChannelsState, ch: Channel) {
+    const exists = state.pendingInvites.find(i => i.id === ch.id)
+    state.pendingInvites = exists
+      ? state.pendingInvites.map(i => (i.id === ch.id ? { ...i, ...ch } : i))
+      : [ch, ...state.pendingInvites]
+    persistPendingInvites(state.pendingInvites)
+  },
+  REMOVE_PENDING_INVITE(state: ChannelsState, channelId: number) {
+    state.pendingInvites = state.pendingInvites.filter(i => i.id !== channelId)
+    persistPendingInvites(state.pendingInvites)
   }
 }
 
@@ -77,7 +110,7 @@ const actions = {
     commit('REMOVE_CHANNEL', channelId)
   },
   handleChannelInvited({ commit }: any, payload: any) {
-    commit('ADD_CHANNEL', {
+    commit('ADD_PENDING_INVITE', {
       id: payload.channelId,
       name: payload.name,
       private: payload.private,
@@ -112,6 +145,14 @@ const actions = {
     
     // Ak je user práve v tomto kanáli, presmeruj ho
     // Toto spraví router v komponente, ktorý počúva na store changes
+  },
+  acceptInvite({ commit }: any, payload: Channel) {
+    // remove pending flag and add channel entry
+    commit('REMOVE_PENDING_INVITE', payload.id)
+    commit('ADD_CHANNEL', { ...payload, invited: false })
+  },
+  declineInvite({ commit }: any, channelId: number) {
+    commit('REMOVE_PENDING_INVITE', channelId)
   }
 }
 

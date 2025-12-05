@@ -88,6 +88,20 @@ function attachListeners(s: Socket) {
         }
         break
 
+      case 'channel_kicked':
+        store.dispatch('channels/handleChannelRemoved', payload.channelId)
+        Notify.create({
+          type: 'negative',
+          message: `Bol si vykopnutý z kanála #${payload.name || payload.channelId}`,
+          caption: 'channel kicked',
+        })
+        try {
+          window.location.href = '/'
+        } catch (e) {
+          console.warn('redirect after kick failed', e)
+        }
+        break
+
       case 'channel_user_left':
         store.dispatch('channels/handleChannelLeft', payload)
         break

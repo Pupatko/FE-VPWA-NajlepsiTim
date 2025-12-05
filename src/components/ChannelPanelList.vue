@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <q-list class="channel-list q-pt-sm q-pb-lg">
     <div v-if="loading" class="q-pa-md text-center">
       <q-spinner color="primary" size="40px" />
@@ -7,8 +7,8 @@
 
     <template v-else>
       <!-- Invitations -->
-      <div v-if="invitedChannels.length" class="q-px-md q-mb-sm text-grey-5 text-caption">
-        Pozvánky
+      <div v-if="invitedChannels.length" class="q-px-md q-mb-xs text-grey-5 text-caption">
+        Invitations
       </div>
       <q-item
         v-for="inv in invitedChannels"
@@ -19,17 +19,17 @@
           <q-icon name="mail" color="orange" />
         </q-item-section>
         <q-item-section>
-          <q-item-label class="text-white">#{{ inv.name }}</q-item-label>
+          <q-item-label class="text-white ellipsis">#{{ inv.name }}</q-item-label>
           <q-item-label caption class="text-grey-5">
-            Pozvánka{{ inv.inviterNickName ? ` • od ${inv.inviterNickName}` : '' }}
+            Invitation{{ inv.inviterNickName ? ` • from ${inv.inviterNickName}` : '' }}
           </q-item-label>
         </q-item-section>
-        <q-item-section side>
+        <q-item-section side class="invite-actions">
           <q-btn dense flat round icon="close" color="negative" @click="declineInvite(inv)">
-            <q-tooltip>Odmietnuť</q-tooltip>
+            <q-tooltip>Decline</q-tooltip>
           </q-btn>
           <q-btn dense flat round icon="check" color="positive" @click="acceptInvite(inv)">
-            <q-tooltip>Prijať</q-tooltip>
+            <q-tooltip>Accept</q-tooltip>
           </q-btn>
         </q-item-section>
       </q-item>
@@ -92,7 +92,7 @@ const channels = computed(() => store.state.channels.list as Channel[])
 
 const activeChannelId = computed(() => route.params.channelId ? Number(route.params.channelId) : null)
 
-const invitedChannels = computed(() => channels.value.filter(c => c.invited))
+const invitedChannels = computed(() => store.state.channels.pendingInvites as Channel[])
 
 const filteredChannels = computed(() => {
   const type = props.activeType ?? 'public'
@@ -117,8 +117,7 @@ const acceptInvite = async (channel: Channel) => {
         }
       )
     }
-    // remove invited flag and add channel normally
-    store.commit('channels/ADD_CHANNEL', { ...channel, invited: false })
+    store.dispatch('channels/acceptInvite', channel)
     router.push(`/channels/${channel.id}`)
   } catch (err) {
     console.error(err)
@@ -138,7 +137,7 @@ const declineInvite = async (channel: Channel) => {
   } catch (err) {
     console.error(err)
   } finally {
-    store.commit('channels/REMOVE_CHANNEL', channel.id)
+    store.dispatch('channels/declineInvite', channel.id)
   }
 }
 
@@ -151,8 +150,7 @@ const loadChannels = async () => {
 
 onMounted(loadChannels)
 
-// Socket listenery sú CENTRÁLNE v boot/socket.ts
-// Nepotrebujeme ich tu duplikovať
+// Socket listeners are centralized in boot/socket.ts
 </script>
 
 <style scoped lang="scss">
@@ -160,6 +158,7 @@ onMounted(loadChannels)
   background-color: $sidebar-bg;
   color: $text-inverse;
   overflow-y: auto;
+  padding-bottom: 12px;
 }
 
 .q-item {
@@ -177,5 +176,52 @@ onMounted(loadChannels)
     border-left-color: $accent;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   }
+}
+
+.invite-item {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: $border-radius;
+  margin: 0 12px 6px;
+  padding: 4px 0;
+  flex-wrap: nowrap;
+}
+
+.invite-item.q-item {
+  display: flex;
+  flex-wrap: nowrap !important;
+}
+
+.invite-item .q-item__section--avatar {
+  min-width: 42px;
+  flex: 0 0 auto;
+}
+
+.invite-item .q-item__label {
+  word-break: break-word;
+}
+
+.invite-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* override global row flex wrapping inside invitation items */
+:deep(.invite-item.row) {
+  flex-wrap: nowrap !important;
+}
+
+:deep(.invite-item.column) {
+  flex-wrap: nowrap !important;
+}
+
+:deep(.invite-item.flex) {
+  flex-wrap: nowrap !important;
+}
+
+:deep(.invite-item .q-item__section) {
+  align-items: center;
+  flex-wrap: nowrap;
+  flex: 0 1 auto;
 }
 </style>
