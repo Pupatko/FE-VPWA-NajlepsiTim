@@ -1,79 +1,83 @@
-﻿<template>
-  <q-layout view="lHh Lpr lFf" style="background: $chat-bg">
-    <q-header elevated>
-      <q-toolbar>
-
+<template>
+  <q-layout view="lHh Lpr lFf" class="bg-grey-1">
+    <q-header elevated class="bg-primary text-white">
+      <q-toolbar class="q-px-md q-py-sm">
         <!-- left side with menu toggle -->
-        <q-btn 
-          dense 
-          flat 
-          round 
-          icon="menu" 
-          @click="toggleLeftDrawer" 
+        <q-btn
+          dense
+          flat
+          round
+          icon="menu"
+          @click="toggleLeftDrawer"
           class="q-mr-sm"
           aria-label="Toggle menu"
         />
-        
-        <q-toolbar-title>
-          # {{ currentChannel }}
+
+        <q-toolbar-title class="text-weight-bold">
+          # {{ currentChannel || 'Choose a channel' }}
         </q-toolbar-title>
 
         <!-- right side -->
-        <div class="q-gutter-x-md">
+        <div class="row items-center q-gutter-sm">
           <q-btn
             flat
             round
+            dense
             icon="account_circle"
             @click="Profile"
             aria-label="Profile"
           />
-        </div>
-
-        <div class="q-gutter-x-md">
           <q-btn
             flat
             round
+            dense
             icon="settings"
             @click="Settings"
             aria-label="Settings"
           />
         </div>
-
       </q-toolbar>
     </q-header>
 
-    <q-drawer 
-      v-model="leftDrawerOpen" 
-      show-if-above 
-      side="left" 
-      bordered 
+    <q-drawer
+      v-model="leftDrawerOpen"
+      show-if-above
+      side="left"
+      bordered
       class="custom-drawer"
     >
       <ChannelPanel />
     </q-drawer>
 
-    <q-page-container class="custom-page-container">
+    <q-page-container class="custom-page-container q-px-md q-pt-md">
       <router-view />
     </q-page-container>
 
     <q-footer class="footer-container">
-      <div class="message-input-wrapper">
-        <MessageInput 
+      <div class="message-input-wrapper q-px-md q-py-sm">
+        <MessageInput
           @toggle-members="toggleMembers"
-          @send="handleSendMessage" 
-          @typing="handleTyping" 
+          @send="handleSendMessage"
+          @typing="handleTyping"
         />
-        
-        <!-- typing indicator below input -->
-        <!-- placeholder for typing indicator -->
       </div>
-    
     </q-footer>
+
+    <!-- Floating scroll-to-bottom button -->
+    <q-btn
+      v-if="showScrollToBottom && isInChat"
+      fab
+      flat
+      unelevated
+      icon="keyboard_arrow_down"
+      class="scroll-bottom-btn scroll-bottom-styled"
+      @click="scrollToBottom"
+    />
   </q-layout>
 </template>
 
 <script lang="ts">
-import { ref, onMounted, watch, getCurrentInstance } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, getCurrentInstance } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import ChannelPanel from '../components/ChannelPanel.vue'
@@ -100,6 +104,23 @@ export default {
     const getSocket = () => {
       const s = internalInstance?.appContext.config.globalProperties.$socket as any
       return s && s.connected ? s : null
+    }
+
+    const showScrollToBottom = ref(false)
+
+    const scrollToBottom = () => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth',
+      })
+    }
+
+    const isInChat = computed(() => route.path.startsWith('/channels/'))
+
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + window.innerHeight
+      const fullHeight = document.documentElement.scrollHeight
+      showScrollToBottom.value = fullHeight - scrollPosition > 200
     }
 
     const toggleLeftDrawer = () => {
@@ -130,12 +151,8 @@ export default {
 
     const handleSendMessage = async (message: string) => {
       const trimmed = message.trim()
-
-      // command?
       const isCommand = trimmed.startsWith('/')
-
       const socket = getSocket()
-
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
 
@@ -240,9 +257,7 @@ export default {
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
 
-      if (!channelId || Number.isNaN(channelId)) {
-        return
-      }
+      if (!channelId || Number.isNaN(channelId)) return
 
       try {
         await api.post('/ws/typing', {
@@ -259,17 +274,16 @@ export default {
       if (channelId) router.push(`/channels/${channelId}/members`)
     }
 
-
-    const Settings = () => {
-      router.push('/settings')
-    }
-
-    const Profile = () => {
-      router.push('/profile')
-    }
+    const Settings = () => router.push('/settings')
+    const Profile = () => router.push('/profile')
 
     onMounted(() => {
+      window.addEventListener('scroll', handleScroll)
       updateCurrentChannelFromRoute()
+    })
+
+    onUnmounted(() => {
+      window.removeEventListener('scroll', handleScroll)
     })
 
     watch(
@@ -291,6 +305,9 @@ export default {
       handleSendMessage,
       handleTyping,
       toggleMembers,
+      showScrollToBottom,
+      scrollToBottom,
+      isInChat,
     }
   },
 }
@@ -306,16 +323,6 @@ export default {
   background-color: $chat-bg;
   color: $text-primary;
   padding-bottom: 180px;
-  
-  &.expanded {
-    flex: 1 1 auto; /* roztiahne sa na celu vysku */
-  }
-}
-
-.app-title {
-  font-size: 20px;
-  font-weight: bold;
-  color: white;
 }
 
 .footer-container {
@@ -324,8 +331,8 @@ export default {
   left: 0;
   right: 0;
   z-index: 1000;
-  background-color: transparent;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  background-color: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.12);
 }
 
 .message-input-wrapper {
@@ -334,7 +341,19 @@ export default {
   position: relative;
 }
 
-.typing-indicator-container {
-  padding: 0 16px 8px 16px;
+.scroll-bottom-styled {
+  background: white !important;
+  border: 2px solid #9b4dff !important;
+  color: #9b4dff !important;
+}
+
+.scroll-bottom-btn {
+  position: fixed;
+  bottom: 95px;
+  right: 24px;
+  z-index: 2000;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
 }
 </style>
