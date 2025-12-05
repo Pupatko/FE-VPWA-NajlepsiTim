@@ -10,29 +10,31 @@
       <div v-if="invitedChannels.length" class="q-px-md q-mb-xs text-grey-5 text-caption">
         Invitations
       </div>
-      <q-item
-        v-for="inv in invitedChannels"
-        :key="`invite-${inv.id}`"
-        class="q-px-md invite-item"
-      >
-        <q-item-section avatar>
-          <q-icon name="mail" color="orange" />
-        </q-item-section>
-        <q-item-section>
-          <q-item-label class="text-white ellipsis">#{{ inv.name }}</q-item-label>
-          <q-item-label caption class="text-grey-5">
-            Invitation{{ inv.inviterNickName ? ` • from ${inv.inviterNickName}` : '' }}
-          </q-item-label>
-        </q-item-section>
-        <q-item-section side class="invite-actions">
-          <q-btn dense flat round icon="close" color="negative" @click="declineInvite(inv)">
-            <q-tooltip>Decline</q-tooltip>
-          </q-btn>
-          <q-btn dense flat round icon="check" color="positive" @click="acceptInvite(inv)">
-            <q-tooltip>Accept</q-tooltip>
-          </q-btn>
-        </q-item-section>
-      </q-item>
+      <div v-if="invitedChannels.length" class="q-gutter-y-sm q-px-xs">
+        <q-item
+          v-for="inv in invitedChannels"
+          :key="`invite-${inv.id}`"
+          class="q-px-md invite-item"
+        >
+          <q-item-section avatar>
+            <q-icon name="mail" color="orange" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white ellipsis">#{{ inv.name }}</q-item-label>
+            <q-item-label caption class="text-grey-5">
+              Invitation{{ inv.inviterNickName ? ` • from ${inv.inviterNickName}` : '' }}
+            </q-item-label>
+          </q-item-section>
+          <q-item-section side class="invite-actions">
+            <q-btn dense flat round icon="close" color="negative" @click="declineInvite(inv)">
+              <q-tooltip>Decline</q-tooltip>
+            </q-btn>
+            <q-btn dense flat round icon="check" color="positive" @click="acceptInvite(inv)">
+              <q-tooltip>Accept</q-tooltip>
+            </q-btn>
+          </q-item-section>
+        </q-item>
+      </div>
 
       <!-- Empty state -->
       <div v-if="!filteredChannels.length && !invitedChannels.length" class="q-pa-md text-center">
@@ -49,8 +51,8 @@
         v-ripple
         :active="activeChannelId === channel.id"
         active-class="active-channel"
-        @click="selectChannel(channel.id)"
-        class="q-px-md"
+        @click="selectChannel(channel)"
+        class="q-px-md channel-row"
       >
         <q-item-section avatar>
           <q-icon :name="channel.private ? 'lock' : 'tag'" :color="channel.private ? 'amber' : 'blue-4'" />
@@ -63,8 +65,21 @@
           </q-item-label>
         </q-item-section>
 
-        <q-item-section side v-if="channel.isOwner">
-          <q-badge color="amber" text-color="black">Owner</q-badge>
+        <q-item-section side v-if="activeChannelId === channel.id" class="channel-actions">
+          <q-btn dense flat round icon="logout" color="warning" @click.stop="leaveChannel(channel)">
+            <q-tooltip>Leave channel</q-tooltip>
+          </q-btn>
+          <q-btn
+            v-if="channel.isOwner"
+            dense
+            flat
+            round
+            icon="delete"
+            color="negative"
+            @click.stop="deleteChannel(channel)"
+          >
+            <q-tooltip>Delete channel</q-tooltip>
+          </q-btn>
         </q-item-section>
       </q-item>
     </template>
@@ -76,6 +91,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import store from 'src/store'
 import type { Channel } from 'src/store/modules/channels'
+import { api } from 'src/boot/axios'
 
 interface Props {
   activeType?: 'public' | 'private'
@@ -99,7 +115,9 @@ const filteredChannels = computed(() => {
   return channels.value.filter(c => !c.invited && (type === 'private' ? c.private : !c.private))
 })
 
-const selectChannel = (channelId: number) => router.push(`/channels/${channelId}`)
+const selectChannel = (channel: Channel) => {
+  router.push(`/channels/${channel.id}`)
+}
 const goCreateChannel = () => router.push('/create-channel')
 
 const acceptInvite = async (channel: Channel) => {
@@ -141,6 +159,65 @@ const declineInvite = async (channel: Channel) => {
   }
 }
 
+const leaveChannel = async (channel: Channel) => {
+  try {
+    const socket = (window as any).$socket as any
+    if (!socket || !socket.connected) {
+      throw new Error('Socket is not connected')
+    }
+
+    await new Promise((resolve, reject) => {
+      socket.emit(
+        'command:cancel',
+        { channelId: channel.id },
+        (response: any) => {
+          if (!response?.ok) {
+            reject(new Error(response?.error || 'Leave failed'))
+            return
+          }
+          resolve(response?.result)
+        }
+      )
+    })
+
+    store.commit('channels/REMOVE_CHANNEL', channel.id)
+    // if user is currently in this channel, redirect home
+    if (activeChannelId.value === channel.id) {
+      router.push('/')
+    }
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const deleteChannel = async (channel: Channel) => {
+  try {
+    const socket = (window as any).$socket as any
+    if (!socket || !socket.connected) {
+      throw new Error('Socket is not connected')
+    }
+
+    await new Promise((resolve, reject) => {
+      socket.emit(
+        'command:quit',
+        { channelId: channel.id },
+        (response: any) => {
+          if (!response?.ok) {
+            reject(new Error(response?.error || 'Delete failed'))
+            return
+          }
+          resolve(response?.result)
+        }
+      )
+    })
+
+    store.commit('channels/REMOVE_CHANNEL', channel.id)
+    router.push('/')
+  } catch (err) {
+    console.error(err)
+  }
+}
+
 // load channels on mount
 const loadChannels = async () => {
   loading.value = true
@@ -176,6 +253,10 @@ onMounted(loadChannels)
     border-left-color: $accent;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   }
+}
+
+.channel-row {
+  position: relative;
 }
 
 .invite-item {

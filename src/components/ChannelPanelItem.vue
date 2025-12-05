@@ -1,49 +1,42 @@
-<template>
-  <q-item clickable v-ripple @click="selectChannel" class="channel-item">
+﻿<template>
+  <q-item clickable v-ripple @click="onClick" class="channel-item" :active="isActive">
     <q-item-section avatar>
       <q-icon :name="icon" color="grey-4" />
     </q-item-section>
-    <q-item-section>{{ name }}</q-item-section>
-    
-    <!-- Action buttons -->
-    <q-item-section side class="action-buttons">
-      <!-- Leave channel - always visible -->
-      <q-btn 
-        flat 
-        dense 
-        round 
-        icon="exit_to_app" 
-        size="sm" 
-        color="warning"
-        @click.stop="leaveChannel"
-      >
-        <q-tooltip>Leave Channel</q-tooltip>
-      </q-btn>
-      
-      <!-- Delete channel - only for admins -->
-      <q-btn 
-        v-if="isAdmin"
-        flat 
-        dense 
-        round 
-        icon="delete" 
-        size="sm" 
-        color="negative"
-        @click.stop="deleteChannel"
-      >
-        <q-tooltip>Delete Channel</q-tooltip>
-      </q-btn>
+    <q-item-section>
+      <div class="row items-center no-wrap justify-between">
+        <span>{{ name }}</span>
+        <q-icon v-if="isActive" name="expand_more" size="16px" class="hint-icon" />
+      </div>
     </q-item-section>
+
+    <q-menu ref="menuRef" touch-position anchor="bottom right" self="top right">
+      <q-list dense style="min-width: 160px">
+        <q-item clickable v-close-popup @click="leaveChannel">
+          <q-item-section avatar>
+            <q-icon name="logout" color="warning" />
+          </q-item-section>
+          <q-item-section>Leave</q-item-section>
+        </q-item>
+        <q-item v-if="isAdmin" clickable v-close-popup @click="deleteChannel">
+          <q-item-section avatar>
+            <q-icon name="delete" color="negative" />
+          </q-item-section>
+          <q-item-section>Delete (owner)</q-item-section>
+        </q-item>
+      </q-list>
+    </q-menu>
   </q-item>
 </template>
 
 <script lang="ts" setup>
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { inject } from 'vue'
-import api from 'src/api/axios'
+import { inject, ref, computed } from 'vue'
+import { api } from 'src/boot/axios'
 
 const router = useRouter()
+const route = useRoute()
 const $q = useQuasar()
 
 // inject the reactive channel list
@@ -56,11 +49,18 @@ const props = defineProps({
   isAdmin: { type: Boolean, default: false }
 })
 
-const selectChannel = () => {
-  router.push(`/channels/${props.channelId}`)
+const menuRef = ref()
+const isActive = computed(() => Number(route.params.channelId) === Number(props.channelId))
+
+const onClick = () => {
+  if (isActive.value && menuRef.value) {
+    menuRef.value.show()
+  } else {
+    router.push(`/channels/${props.channelId}`)
+  }
 }
 
-// --------------------- LEAVE CHANNEL ---------------------
+// --------------------- LEAVE CHANNEL (socket) ---------------------
 const leaveChannel = () => {
   $q.dialog({
     title: 'Leave Channel',
@@ -69,7 +69,24 @@ const leaveChannel = () => {
     persistent: true
   }).onOk(async () => {
     try {
-      await api.post('/leave', { channelId: props.channelId })
+      const socket = (window as any).$socket as any
+      if (!socket || !socket.connected) {
+        throw new Error('Socket is not connected')
+      }
+
+      await new Promise((resolve, reject) => {
+        socket.emit(
+          'command:cancel',
+          { channelId: props.channelId },
+          (response: any) => {
+            if (!response?.ok) {
+              reject(new Error(response?.error || 'Leave failed'))
+              return
+            }
+            resolve(response?.result)
+          }
+        )
+      })
 
       if (myChannels?.value) {
         myChannels.value = myChannels.value.filter(
@@ -82,6 +99,9 @@ const leaveChannel = () => {
         message: `Left channel ${props.name}`,
         icon: 'exit_to_app'
       })
+      if (Number(route.params.channelId) === Number(props.channelId)) {
+        router.push('/')
+      }
     } catch (err) {
       console.error(err)
       $q.notify({ type: 'negative', message: 'Failed to leave channel', icon: 'error' })
@@ -95,7 +115,7 @@ const deleteChannel = () => {
 
   $q.dialog({
     title: 'Delete Channel',
-    message: `Are you sure you want to permanently delete ${props.name}? This action cannot be undone.`,
+    message: `Delete ${props.name}? This action cannot be undone.`,
     cancel: true,
     persistent: true,
     color: 'negative'
@@ -103,7 +123,7 @@ const deleteChannel = () => {
     try {
       const socket = (window as any).$socket as any
       if (!socket || !socket.connected) {
-        throw new Error('Socket nie je pripojený')
+        throw new Error('Socket is not connected')
       }
 
       await new Promise((resolve, reject) => {
@@ -133,7 +153,7 @@ const deleteChannel = () => {
       })
 
       router.push('/')
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
       $q.notify({ type: 'negative', message: err?.message || 'Failed to delete channel', icon: 'error' })
     }
@@ -141,22 +161,21 @@ const deleteChannel = () => {
 }
 </script>
 
-
 <style lang="scss" scoped>
 .channel-item {
   color: $text-inverse;
   background-color: $sidebar-item-bg;
   border-radius: 16px;
-  
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  padding-right: 8px;
+
   &:hover {
     background-color: $channel-hover;
     color: $text-primary;
-    
-    .action-buttons {
-      opacity: 1;
-    }
   }
-  
+
   &.q-item--active {
     background-color: $channel-active;
     color: $primary;
@@ -164,13 +183,8 @@ const deleteChannel = () => {
   }
 }
 
-.action-buttons {
-  opacity: 0;
-  transition: opacity 0.2s;
-  display: flex;           
-  flex-direction: row;      
-  align-items: center;      
-  justify-content: flex-end;
-  gap: 4px;
+.hint-icon {
+  opacity: 0.6;
+  margin-left: 8px;
 }
 </style>
