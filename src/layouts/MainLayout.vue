@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <q-layout view="lHh Lpr lFf" style="background: $chat-bg">
     <q-header elevated>
       <q-toolbar>
@@ -73,7 +73,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, getCurrentInstance } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import ChannelPanel from '../components/ChannelPanel.vue'
@@ -90,17 +90,17 @@ export default {
     const leftDrawerOpen = ref(false)
     const userStatus = ref('online')
     const currentUser = ref('user123')
-    const currentChannel = ref('') // už nie 'general' napevno
-
-    const channels = ref([
-      { id: '1', name: 'general', type: 'public', unread: 0 },
-      { id: '2', name: 'random', type: 'public', unread: 3 },
-      { id: '3', name: 'private-room', type: 'private', unread: 1 },
-    ])
+    const currentChannel = ref('')
 
     const router = useRouter()
     const route = useRoute()
     const $q = useQuasar()
+
+    const internalInstance = getCurrentInstance()
+    const getSocket = () => {
+      const s = internalInstance?.appContext.config.globalProperties.$socket as any
+      return s && s.connected ? s : null
+    }
 
     const toggleLeftDrawer = () => {
       leftDrawerOpen.value = !leftDrawerOpen.value
@@ -110,7 +110,20 @@ export default {
       router.push(`/channels/${channelId}`)
     }
 
-    // 🔥 Funkcia, ktorá načíta názov kanála podľa ID z route
+    const parseSlashCommand = (raw: string) => {
+      const trimmed = raw.trim()
+      if (!trimmed.startsWith('/')) {
+        return null
+      }
+
+      const parts = trimmed.split(/\s+/)
+      const name = parts[0].substring(1).toLowerCase()
+      const args = parts.slice(1)
+
+      return { command: name, args }
+    }
+
+    // Funkcia, ktora nacita nazov kanala podla ID z route
     const updateCurrentChannelFromRoute = async () => {
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
@@ -130,60 +143,121 @@ export default {
     }
 
     const handleSendMessage = async (message: string) => {
+      const trimmed = message.trim()
+
+      // prikaz?
+      const isCommand = trimmed.startsWith('/')
+
+      // priprav WebSocket
+      const socket = getSocket()
+
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
 
-      if (!channelId || Number.isNaN(channelId)) {
-        $q.notify({
-          type: 'warning',
-          message: 'Najprv si vyber kanál vľavo v zozname',
-        })
-        return
-      }
-
       try {
-        // PRÍKAZY (/join, /invite, /kick, ...)
-        if (message.startsWith('/')) {
+        // ********************************************
+        // 1) WEBSOCKET /join - NEPOTREBUJE channelId
+        // ********************************************
+        if (isCommand && trimmed.startsWith('/join')) {
+          if (!socket) {
+            console.warn('send: /join without active socket')
+            $q.notify({ type: 'negative', message: 'WebSocket nie je pripojeny.' })
+            return
+          }
+
+          const parts = trimmed.split(/\s+/)
+          const channelName = parts[1]
+          const rawFlag = parts[2]?.replace(/\[|\]/g, '').toLowerCase()
+          const isPrivate = rawFlag === 'private'
+
+          if (!channelName) {
+            $q.notify({ type: 'warning', message: 'Pouzitie: /join channelName [private]' })
+            return
+          }
+
+          socket.emit(
+            'command:join',
+            {
+              channelName,
+              private: isPrivate,
+            },
+            (response: any) => {
+              if (!response?.ok) {
+                $q.notify({
+                  type: 'negative',
+                  message: response?.error || 'Chyba pri /join',
+                })
+                return
+              }
+
+              const newId = response.result?.channelId
+              if (newId) {
+                router.push(`/channels/${newId}`)
+              }
+
+              if (response.result?.message) {
+                $q.notify({ type: 'positive', message: response.result.message })
+              }
+            }
+          )
+
+          return
+        }
+
+        // **************************************************
+        // 2) OSTATNE PRIKAZY - povodne REST spracovanie
+        // **************************************************
+        if (isCommand) {
+          if (!channelId || Number.isNaN(channelId)) {
+            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            return
+          }
+
           const { data } = await api.post('/ws/command', {
             channelId,
-            content: message,
+            content: trimmed,
           })
 
-          if (message.startsWith('/list')) {
+          if (trimmed.startsWith('/list')) {
             router.push(`/channels/${channelId}/members`)
             return
           }
 
           const msg =
-            (data && (data.message || data.result || data.info)) ||
-            'Príkaz bol spracovaný'
+            data?.message ||
+            data?.result ||
+            data?.info ||
+            'Prikaz bol spracovany'
 
-          $q.notify({
-            type: 'positive',
-            message: msg,
-          })
+          $q.notify({ type: 'positive', message: msg })
 
-          // ak príkaz vrátil channelId (napr. /join), presmeruj do kanála
-          if (data && data.channelId) {
+          if (data?.channelId) {
             router.push(`/channels/${data.channelId}`)
           }
 
           return
         }
 
-        // BEŽNÁ SPRÁVA
-        const { data } = await api.post('/ws/message', {
+        // ********************************************
+        // 3) Bezna sprava - povodne REST odoslanie
+        // ********************************************
+        if (!channelId || Number.isNaN(channelId)) {
+          $q.notify({
+            type: 'warning',
+            message: 'Najprv si vyber kanal vlavo v zozname',
+          })
+          return
+        }
+
+        await api.post('/ws/message', {
           channelId,
-          content: message,
+          content: trimmed,
         })
-        console.log('message sent', data)
       } catch (error: any) {
         console.error('send failed', error)
         $q.notify({
           type: 'negative',
-          message:
-            error?.response?.data?.message ||
-            'Nepodarilo sa odoslať správu / príkaz',
+          message: error?.response?.data?.message || 'Nepodarilo sa odoslat spravu / prikaz',
         })
       }
     }
@@ -220,12 +294,12 @@ export default {
       router.push('/profile')
     }
 
-    // 🔄 Pri prvom načítaní layoutu nastav názov kanála podľa aktuálnej route
+    // Pri prvom nacitani layoutu nastav nazov kanala podla aktualnej route
     onMounted(() => {
       updateCurrentChannelFromRoute()
     })
 
-    // 🔄 Pri každom prepnutí kanála (zmena route parametra) obnov názov
+    // Pri kazdom prepnuti kanala (zmena route parametra) obnov nazov
     watch(
       () => route.params.channelId,
       () => {
@@ -238,7 +312,6 @@ export default {
       userStatus,
       currentUser,
       currentChannel,
-      channels,
       toggleLeftDrawer,
       Settings,
       Profile,
@@ -263,7 +336,7 @@ export default {
   padding-bottom: 180px;
   
   &.expanded {
-    flex: 1 1 auto; /* rozťahne sa na celú výšku */
+    flex: 1 1 auto; /* roztiahne sa na celu vysku */
   }
 }
 

@@ -1,4 +1,4 @@
-import { api } from 'src/boot/axios'
+﻿import { api } from 'src/boot/axios'
 
 export interface Channel {
   id: number
@@ -40,11 +40,33 @@ class ChannelService {
   }
 
   /**
-   * Join or create channel
+   * Join or create channel via Socket.IO command:join
    */
   async joinChannel(data: CreateChannelData): Promise<any> {
-    const response = await api.post('/join', data)
-    return response.data
+    const socket = (window as any).$socket as any
+
+    if (!socket || typeof socket.emit !== 'function') {
+      throw new Error('Socket is not connected')
+    }
+
+    return await new Promise((resolve, reject) => {
+      socket.emit(
+        'command:join',
+        { channelName: data.name, private: data.private },
+        (response: any) => {
+          if (!response?.ok) {
+            reject(new Error(response?.error || 'Join failed'))
+            return
+          }
+
+          const result = response.result || {}
+          resolve({
+            ...result,
+            id: result.channelId ?? result.id,
+          })
+        }
+      )
+    })
   }
 
   /**

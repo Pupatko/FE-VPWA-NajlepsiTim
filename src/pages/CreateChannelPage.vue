@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <q-page class="flex flex-center create-channel-page">
     <q-card class="create-channel-card" flat bordered>
       <q-card-section class="card-header">
@@ -117,6 +117,8 @@ export default {
           private: isPrivate,
         })
 
+        const targetId = result.channelId ?? result.id
+
         $q.notify({
           type: 'positive',
           message:
@@ -125,15 +127,16 @@ export default {
           icon: 'check_circle',
         })
 
-        // presmeruj rovno do daného kanála
-        router.push(`/channels/${result.id}`)
+        // presmeruj rovno do daneho kanala
+        if (targetId) {
+          router.push(`/channels/${targetId}`)
+        }
       } catch (err: any) {
         console.error('Failed to create/join channel', err)
 
         $q.notify({
           type: 'negative',
-          message:
-            err?.response?.data?.message || 'Failed to create channel',
+          message: err?.response?.data?.message || err?.message || 'Failed to create channel',
           icon: 'error',
         })
       }

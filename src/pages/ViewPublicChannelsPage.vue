@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <q-page class="flex flex-center view-public-channels-page">
     <q-card class="public-channels-card" flat bordered>
     <q-card-section class="card-header">
@@ -66,7 +66,7 @@ const loadPublicChannels = async () => {
     console.error('Failed to load public channels', error)
     $q.notify({
       type: 'negative',
-      message: 'Nepodarilo sa načítať verejné kanály',
+      message: 'Nepodarilo sa nacitat verejne kanaly',
     })
   } finally {
     loading.value = false
@@ -77,24 +77,27 @@ onMounted(loadPublicChannels)
 
 const joinChannel = async (channel: Channel) => {
   try {
-    const { channelId, message } = await channelService.joinChannel({
+    const result = await channelService.joinChannel({
       name: channel.name,
       private: false,
     })
 
+    const targetId = result.channelId ?? result.id
+
     $q.notify({
-      message: message || `Joined ${channel.name}`,
+      message: result.message || `Joined ${channel.name}`,
       type: 'positive',
       icon: 'check_circle',
     })
 
-    // presmeruj priamo do chatu daného kanála
-    router.push(`/channels/${channelId}`)
+    if (targetId) {
+      router.push(`/channels/${targetId}`)
+    }
   } catch (error: any) {
     console.error('Failed to join channel', error)
     $q.notify({
       type: 'negative',
-      message: error?.response?.data?.message || 'Nepodarilo sa pripojiť do kanála',
+      message: error?.response?.data?.message || error?.message || 'Nepodarilo sa pripojit do kanala',
     })
   }
 }
