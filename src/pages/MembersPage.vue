@@ -25,17 +25,18 @@
             <!-- avatar -->
             <q-item-section avatar>
               <q-avatar color="primary" text-color="white">
-                {{ member.nick_name[0].toUpperCase() }}
+                {{ member.nickName[0]?.toUpperCase() }}
               </q-avatar>
             </q-item-section>
 
             <!-- name + owner badge -->
             <q-item-section>
-              <q-item-label>
-                {{ member.nick_name }}
+              <q-item-label class="row items-center no-wrap q-gutter-xs">
+                <q-icon name="circle" :color="statusColor(member.status)" size="10px" />
+                <span>{{ member.nickName }}</span>
 
                 <q-badge
-                  v-if="member.owner"
+                  v-if="member.isOwner"
                   color="purple"
                   class="q-ml-xs"
                 >
@@ -44,7 +45,8 @@
               </q-item-label>
 
               <q-item-label caption>
-                <span v-if="member.kick_count >= 3" style="color: red">
+                <span class="text-grey-6 q-mr-sm">Status: {{ member.status }}</span>
+                <span v-if="member.kick_count && member.kick_count >= 3" style="color: red">
                   banned
                 </span>
                 <span v-else>
@@ -65,16 +67,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useStore } from 'vuex'
 import { api } from 'src/boot/axios'
 
 const router = useRouter()
 const route = useRoute()
+const store = useStore()
 
 interface Member {
   id: number
-  nick_name: string
-  owner: boolean
-  kick_count: number
+  nickName: string
+  isOwner: boolean
+  kick_count?: number
+  status: 'online' | 'dnd' | 'offline'
 }
 
 const members = ref<Member[]>([])
@@ -88,12 +93,11 @@ async function loadMembers() {
     const channelId = Number(route.params.channelId)
     if (!channelId) return
 
-    const { data } = await api.post('/ws/command', {
-      channelId,
-      content: '/list',
-    })
-
+    const { data } = await api.get(`/channels/${channelId}/members`)
     members.value = data.members || []
+    members.value.forEach((m) => {
+      store.dispatch('presence/setStatus', { userId: m.id, status: m.status })
+    })
 
   } catch (err) {
     console.error('Load members failed:', err)
@@ -101,6 +105,12 @@ async function loadMembers() {
 }
 
 onMounted(loadMembers)
+
+const statusColor = (status: 'online' | 'dnd' | 'offline') => {
+  if (status === 'dnd') return 'dnd-status'
+  if (status === 'offline') return 'grey-6'
+  return 'positive'
+}
 
 </script>
 

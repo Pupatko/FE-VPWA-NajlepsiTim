@@ -99,6 +99,24 @@ class AuthService {
     const response = await api.put<User>('/users/me/settings', settings)
     return response.data
   }
+
+  /**
+   * Update only the presence status (online/dnd/offline)
+   */
+  async setStatus(status: 'online' | 'dnd' | 'offline'): Promise<{ status: string; state: number }> {
+    const response = await api.patch('/users/me/status', { status })
+    return response.data
+  }
+
+  /**
+   * Update notification preference (mentions only vs all)
+   */
+  async updateNotificationPrefs(notifyMentionsOnly: boolean): Promise<'all' | 'mentions_only'> {
+    const response = await api.patch('/users/me/notification-prefs', {
+      notifyMentionsOnly,
+    })
+    return response.data.notificationMode ?? (notifyMentionsOnly ? 'mentions_only' : 'all')
+  }
 }
 
 export default new AuthService()

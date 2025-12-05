@@ -19,6 +19,34 @@
 
         <!-- right side -->
         <div class="row items-center q-gutter-sm">
+          <q-btn-dropdown
+            flat
+            dense
+            color="white"
+            :loading="statusLoading"
+            class="status-dropdown"
+            no-caps
+          >
+            <template #label>
+              <div class="row items-center no-wrap q-gutter-xs">
+                <q-icon name="circle" :color="statusColor" size="12px" />
+                <span class="text-body2">{{ statusLabel }}</span>
+              </div>
+            </template>
+            <q-list dense>
+              <q-item
+                v-for="opt in statusOptions"
+                :key="opt.value"
+                clickable
+                @click="changeStatus(opt.value)"
+              >
+                <q-item-section avatar>
+                  <q-icon name="circle" :color="opt.color" />
+                </q-item-section>
+                <q-item-section>{{ opt.label }}</q-item-section>
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
           <q-btn
             flat
             round
@@ -81,10 +109,13 @@
 import { ref, onMounted, onUnmounted, watch, computed, getCurrentInstance } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useStore } from 'vuex'
 import ChannelPanel from '../components/ChannelPanel.vue'
 import MessageInput from '../components/MessageInput.vue'
 import { api } from 'src/boot/axios'
 import channelService from 'src/services/channel.service'
+import authService from 'src/services/auth.service'
+import type { PresenceStatus } from 'src/store/modules/presence'
 
 export default {
   components: {
@@ -93,13 +124,13 @@ export default {
   },
   setup() {
     const leftDrawerOpen = ref(false)
-    const userStatus = ref('online')
     const currentUser = ref('user123')
     const currentChannel = ref('')
 
     const router = useRouter()
     const route = useRoute()
     const $q = useQuasar()
+    const store = useStore()
 
     const internalInstance = getCurrentInstance()
     const getSocket = () => {
@@ -162,6 +193,25 @@ export default {
       const channelId = Number(channelIdParam)
 
       try {
+        // /list -> fetch members and redirect
+        if (isCommand && trimmed.startsWith('/list')) {
+          if (!channelId || Number.isNaN(channelId)) {
+            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            return
+          }
+          try {
+            await api.get(`/channels/${channelId}/members`)
+            router.push(`/channels/${channelId}/members`)
+          } catch (err: any) {
+            console.error('List command failed', err)
+            $q.notify({
+              type: 'negative',
+              message: err?.response?.data?.message || 'Nepodarilo sa nacitat clenov kanala',
+            })
+          }
+          return
+        }
+
         // /join via socket
         if (isCommand && trimmed.startsWith('/join')) {
           if (!socket) {
@@ -365,11 +415,6 @@ export default {
             content: trimmed,
           })
 
-          if (trimmed.startsWith('/list')) {
-            router.push(`/channels/${channelId}/members`)
-            return
-          }
-
           if (trimmed.startsWith('/cancel')) {
             router.push('/')
           }
@@ -385,6 +430,14 @@ export default {
         }
 
         // normal message (REST for now)
+        if (!isCommand && selfStatus.value === 'offline') {
+          $q.notify({
+            type: 'warning',
+            message: 'Si v offline rezime. Prepni status na online alebo DND pre odosielanie sprav.',
+          })
+          return
+        }
+
         if (!channelId || Number.isNaN(channelId)) {
           $q.notify({
             type: 'warning',
@@ -445,6 +498,42 @@ export default {
       if (channelId) router.push(`/channels/${channelId}/members`)
     }
 
+    const statusOptions: { label: string; value: PresenceStatus; color: string }[] = [
+      { label: 'Online', value: 'online', color: 'positive' },
+      { label: 'Do Not Disturb', value: 'dnd', color: 'dnd-status' },
+      { label: 'Offline', value: 'offline', color: 'grey-6' },
+    ]
+    const statusLoading = ref(false)
+    const selfStatus = computed<PresenceStatus>(() => store.state.presence?.selfStatus || 'online')
+    const statusColor = computed(() => statusOptions.find((s) => s.value === selfStatus.value)?.color || 'grey')
+    const statusLabel = computed(
+      () => statusOptions.find((s) => s.value === selfStatus.value)?.label || 'Status'
+    )
+    const statusToStateNumber = (status: PresenceStatus): 1 | 2 | 3 =>
+      status === 'dnd' ? 2 : status === 'offline' ? 3 : 1
+
+    const changeStatus = async (status: PresenceStatus) => {
+      if (statusLoading.value) return
+      statusLoading.value = true
+      try {
+        await authService.setStatus(status)
+        const current = store.state.auth.user
+        if (current) {
+          store.commit('auth/SET_USER', { ...current, state: statusToStateNumber(status) })
+        }
+        store.dispatch('presence/setSelfStatus', status)
+        $q.notify({ type: 'positive', message: `Status set to ${status}` })
+      } catch (error: any) {
+        console.error('Status change failed', error)
+        $q.notify({
+          type: 'negative',
+          message: error?.response?.data?.message || 'Failed to update status',
+        })
+      } finally {
+        statusLoading.value = false
+      }
+    }
+
 
     const Settings = () => {
       router.push('/settings')
@@ -472,7 +561,6 @@ export default {
 
     return {
       leftDrawerOpen,
-      userStatus,
       currentUser,
       currentChannel,
       toggleLeftDrawer,
@@ -486,6 +574,11 @@ export default {
       showScrollToBottom,
       scrollToBottom,
       isInChat,
+      statusOptions,
+      statusColor,
+      statusLabel,
+      statusLoading,
+      changeStatus,
     }
   },
 }

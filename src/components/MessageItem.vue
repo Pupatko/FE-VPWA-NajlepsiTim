@@ -11,7 +11,7 @@
       <q-avatar color="primary" text-color="white" class="avatar-wrapper">
         {{ authorInitials }}
         <span
-          :class="['status-dot', isOnline ? 'online' : 'offline']"
+          :class="['status-dot', status]"
         ></span>
       </q-avatar>
     </template>
@@ -20,6 +20,7 @@
 
 <script lang="ts">
 import { computed } from 'vue'
+import { useStore } from 'vuex'
 
 export default {
   props: {
@@ -30,9 +31,15 @@ export default {
     currentUser: {
       type: String,
       default: 'me'
+    },
+    userId: {
+      type: Number,
+      default: 0
     }
   },
   setup(props) {
+    const store = useStore()
+
     const isCurrentUser = computed(() => props.message.author === props.currentUser)
 
     const authorInitials = computed(() => {
@@ -47,13 +54,19 @@ export default {
       return `${hours}:${minutes}`
     })
 
-    const isOnline = computed(() => !!props.message.online)
+    const status = computed(() => {
+      const getter = store.getters['presence/statusFor']
+      const val = typeof getter === 'function' ? getter(props.userId || props.message.userId) : undefined
+      if (val === 'dnd') return 'dnd'
+      if (val === 'online') return 'online'
+      return 'offline'
+    })
 
     return {
       isCurrentUser,
       authorInitials,
       formattedTimestamp,
-      isOnline
+      status
     }
   }
 }

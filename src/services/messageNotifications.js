@@ -33,71 +33,73 @@ export class MessageNotificationService {
     }
     return { type: 'all', showPreview: true }
   }
-  
+
   // check if user should receive notification
-  shouldNotify(message, currentUser) {
+  shouldNotify(options) {
+    const { message, currentUserId, appVisible, userStatus, notifyMentionsOnly } = options
     const settings = this.loadSettings()
-    
-    // if notifications are disabled
-    if (settings.type === 'disabled') return false
-    
-    // don't notify for own messages
-    if (message.author === currentUser) return false
-    
-    switch (settings.type) {
-      case 'all':
-        return true
-        
-      case 'mentions':
-        // check if message contains mention
-        return message.content.includes(`@${currentUser}`)
-        
-      default:
-        return false
+    const preferMentions = notifyMentionsOnly ?? settings.type === 'mentions'
+
+    if (appVisible) return false
+    if (userStatus === 'offline' || userStatus === 'dnd') return false
+
+    const senderId = Number(message.userId || message.user_id)
+    if (senderId && senderId === currentUserId) return false
+
+    if (preferMentions) {
+      const mentioned = Number(message.mentionedUserId ?? message.mentioned_user_id)
+      const isMentioned = mentioned === currentUserId
+      const isDirect = message.channelType === 'dm' || message.isDirect === true
+      if (!isMentioned && !isDirect) return false
     }
+
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+
+    return 'Notification' in window && Notification.permission === 'granted'
   }
-  
+
   // show notification for new message
-  notifyNewMessage(message, channelName, currentUser) {
-    if (!this.shouldNotify(message, currentUser)) {
+  notifyNewMessage(options) {
+    const {
+      message,
+      channelName,
+      senderName,
+      currentUserId,
+      userStatus,
+      notifyMentionsOnly,
+      appVisible,
+    } = options
+
+    if (
+      !this.shouldNotify({
+        message,
+        currentUserId,
+        appVisible,
+        userStatus,
+        notifyMentionsOnly,
+      })
+    ) {
       return
     }
-    
+
     const settings = this.loadSettings()
-    
-    const title = `New message in #${channelName}`
-    const body = settings.showPreview !== false
-      ? `${message.author}: ${message.content}`
-      : 'You have a new message'
-    
-    // check if app is visible using quasar instance
-    if (this.$q && this.$q.appVisible) {
-      // use quasar notify
-      this.$q.notify({
-        message: title,
-        caption: body,
-        icon: 'notifications',
-        color: 'primary',
-        position: 'top-right',
-        timeout: 3000,
-        actions: [
-          { label: 'Dismiss', color: 'white' }
-        ]
-      })
-    } else {
-      // use browser notification
-      if (Notification.permission === 'granted') {
-        const notification = new Notification(title, {
-          body,
-          icon: '/icons/icon-128x128.png',
-          tag: `message-${channelName}`
-        })
-        
-        notification.onclick = () => {
-          window.focus()
-          notification.close()
-        }
-      }
+    const title = senderName || `New message${channelName ? ` in #${channelName}` : ''}`
+    const body =
+      settings.showPreview !== false && message?.content
+        ? `${senderName || ''} ${message.content}`.trim().slice(0, 120)
+        : 'You have a new message'
+
+    const notification = new Notification(title, {
+      body,
+      icon: '/icons/icon-128x128.png',
+      tag: `message-${channelName || message?.channelId || 'general'}`,
+    })
+
+    notification.onclick = () => {
+      window.focus()
+      notification.close()
     }
   }
 }

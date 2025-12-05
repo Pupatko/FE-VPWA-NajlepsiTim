@@ -17,6 +17,7 @@
           :key="message.id"
           :message="message"
           :current-user="currentUser"
+          :user-id="message.userId"
         />
       </q-infinite-scroll>
 
@@ -51,6 +52,7 @@ import {
 } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useStore } from 'vuex'
 import { api } from 'src/boot/axios'
 import authService from 'src/services/auth.service'
 import channelService from 'src/services/channel.service'
@@ -62,27 +64,38 @@ interface BackendMessage {
   content: string
   createdAt: string
   userId: number
+  user_id?: number
   mentionedUserId: number | null
   authorNickName: string
   mentionedUserNickName?: string | null
   channelId: number
+  channel_id?: number
 }
 
 interface ChatMessage {
   id: number
+  userId: number
   author: string
   content: string
   timestamp: Date
   mentionedUser?: string | null
+  mentionedUserId?: number | null
 }
+
+const SYNC_EVENT = 'chat:sync'
 
 const $q = useQuasar()
 const route = useRoute()
+const store = useStore()
 
-const internalInstance = getCurrentInstance()
-const socket = internalInstance?.appContext.config.globalProperties.$socket as any
+const getSocket = () => {
+  const internalInstance = getCurrentInstance()
+  const instanceSocket = internalInstance?.appContext.config.globalProperties.$socket as any
+  return instanceSocket || (window as any).$socket
+}
 
 const currentUser = ref<string>('me')
+const currentUserId = ref<number | null>(null)
 const currentChannel = ref<string>('') // channel name from backend
 const typingUsers = ref<{ userId: number; nick: string }[]>([])
 const draftPreviews = ref<Record<number, string>>({})
@@ -97,12 +110,37 @@ const channelId = computed(() => {
   const id = Number(route.params.channelId)
   return Number.isNaN(id) ? null : id
 })
+const hasMessage = (id: number) => messages.value.some((m) => m.id === id)
+
+const mapBackendMessage = (m: BackendMessage | any): ChatMessage => ({
+  id: m.id,
+  userId: m.userId ?? m.user_id ?? 0,
+  author: m.authorNickName ?? m.author_nick_name ?? 'unknown',
+  content: m.content,
+  timestamp: new Date(m.createdAt ?? m.created_at),
+  mentionedUser: m.mentionedUserNickName ?? m.mentioned_user_nick_name ?? null,
+  mentionedUserId: m.mentionedUserId ?? m.mentioned_user_id ?? null,
+})
+
+const addMessage = (msg: ChatMessage, notify = false) => {
+  if (hasMessage(msg.id)) return
+  messages.value.push(msg)
+  if (notify) {
+    maybeNotifyMessage(msg)
+  }
+}
+const userStatus = computed(() => store.state.presence?.selfStatus || 'online')
+const notifyMentionsOnly = computed(
+  () => store.state.auth?.user?.notificationMode === 'mentions_only'
+)
+const appVisible = computed(() => store.state.presence?.appVisible !== false)
 
 // load user/channel meta
 async function loadMeta() {
   try {
     const me = await authService.me()
     currentUser.value = me.nickName
+    currentUserId.value = me.id
   } catch (error) {
     console.error('Failed to load current user', error)
   }
@@ -133,13 +171,9 @@ async function fetchMessages(page: number) {
 
   const backendMessages = response.data.data
 
-  const mapped: ChatMessage[] = backendMessages.map((m) => ({
-    id: m.id,
-    author: m.authorNickName,
-    content: m.content,
-    timestamp: new Date(m.createdAt),
-    mentionedUser: m.mentionedUserNickName ?? null,
-  }))
+  const mapped: ChatMessage[] = backendMessages
+    .map((m) => mapBackendMessage(m))
+    .filter((m) => !hasMessage(m.id))
 
   if (page === 1 && messages.value.length === 0) {
     messages.value = mapped
@@ -179,21 +213,8 @@ function handleSocketMessage(payload: any) {
   const msgChannelId = payload.channelId ?? payload.channel_id
   if (msgChannelId !== channelId.value) return
 
-  const chatMessage: ChatMessage = {
-    id: payload.id,
-    author:
-      payload.authorNickName ??
-      payload.author_nick_name ??
-      'unknown',
-    content: payload.content,
-    timestamp: new Date(payload.createdAt ?? payload.created_at),
-    mentionedUser:
-      payload.mentionedUserNickName ??
-      payload.mentioned_user_nick_name ??
-      null,
-  }
-
-  messages.value.push(chatMessage)
+  const chatMessage = mapBackendMessage(payload)
+  addMessage(chatMessage, true)
 }
 
 // typing handler
@@ -237,41 +258,56 @@ function handleSocketDraft(payload: any) {
   draftPreviews.value[uid] = text
 }
 
+function maybeNotifyMessage(msg: ChatMessage) {
+  const uid = currentUserId.value
+  if (!uid) return
+
+  messageNotifications.notifyNewMessage({
+    message: { ...msg },
+    channelName: currentChannel.value || (channelId.value !== null ? `channel-${channelId.value}` : 'channel'),
+    senderName: msg.author,
+    currentUserId: uid,
+    userStatus: userStatus.value,
+    notifyMentionsOnly: notifyMentionsOnly.value,
+    appVisible: appVisible.value,
+  })
+}
+
+function handleSyncEvent(event: Event) {
+  const detail = (event as CustomEvent<any>).detail
+  if (!detail?.messages || channelId.value === null) return
+  const key = String(channelId.value)
+  const items = detail.messages[key] || []
+  items.forEach((raw: any) => {
+    const mapped = mapBackendMessage(raw)
+    addMessage(mapped, false)
+  })
+}
+
 onMounted(async () => {
   await loadMeta()
 
-  if (socket) {
-    socket.on('message', handleSocketMessage)
-    socket.on('typing', handleSocketTyping)
-    socket.on('draft_preview', handleSocketDraft)
+  const socketInstance = getSocket()
+  if (socketInstance) {
+    socketInstance.on('message', handleSocketMessage)
+    socketInstance.on('new_message', handleSocketMessage)
+    socketInstance.on('typing', handleSocketTyping)
+    socketInstance.on('draft_preview', handleSocketDraft)
   }
+
+  window.addEventListener(SYNC_EVENT, handleSyncEvent as any)
 })
 
 onUnmounted(() => {
-  if (socket) {
-    socket.off('message', handleSocketMessage)
-    socket.off('typing', handleSocketTyping)
-    socket.off('draft_preview', handleSocketDraft)
+  const socketInstance = getSocket()
+  if (socketInstance) {
+    socketInstance.off('message', handleSocketMessage)
+    socketInstance.off('new_message', handleSocketMessage)
+    socketInstance.off('typing', handleSocketTyping)
+    socketInstance.off('draft_preview', handleSocketDraft)
   }
+  window.removeEventListener(SYNC_EVENT, handleSyncEvent as any)
 })
-
-// notifications on new messages (for background)
-watch(
-  () => messages.value.length,
-  (newLength, oldLength) => {
-    if (newLength > oldLength && messages.value.length > 0) {
-      const latestMessage = messages.value[messages.value.length - 1]
-
-      if (latestMessage.author !== currentUser.value) {
-        messageNotifications.notifyNewMessage(
-          latestMessage as any,
-          currentChannel.value || (channelId.value !== null ? `channel-${channelId.value}` : 'channel'),
-          currentUser.value
-        )
-      }
-    }
-  }
-)
 
 // reset on channel change
 watch(

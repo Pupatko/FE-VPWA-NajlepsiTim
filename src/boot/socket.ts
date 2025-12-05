@@ -1,9 +1,12 @@
-﻿import { boot } from 'quasar/wrappers'
+import { boot } from 'quasar/wrappers'
 import { io, Socket } from 'socket.io-client'
+import { Notify, AppVisibility } from 'quasar'
+import { api } from 'src/boot/axios'
 import store from 'src/store'
-import { Notify } from 'quasar'
+import type { PresenceStatus } from 'src/store/modules/presence'
 
 let socket: Socket | null = null
+const SYNC_EVENT = 'chat:sync'
 
 declare module '@vue/runtime-core' {
   interface ComponentCustomProperties {
@@ -11,17 +14,79 @@ declare module '@vue/runtime-core' {
   }
 }
 
+const statusFromStateNumber = (state?: number | null): PresenceStatus => {
+  if (state === 2) return 'dnd'
+  if (state === 3) return 'offline'
+  return 'online'
+}
+
+const preferredStatus = (): PresenceStatus => {
+  const self = store.state.presence?.selfStatus
+  if (self) return self
+  const stateNumber = store.state.auth?.user?.state
+  return statusFromStateNumber(stateNumber)
+}
+
+const markSelfStatus = (status: PresenceStatus) => {
+  const uid = store.state.auth?.user?.id
+  if (uid) {
+    store.dispatch('presence/setStatus', { userId: uid, status })
+  }
+  store.dispatch('presence/setSelfStatus', status)
+}
+
+const dispatchSyncEvent = (payload: any) => {
+  try {
+    window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: payload }))
+  } catch (err) {
+    console.warn('Failed to dispatch sync event', err)
+  }
+}
+
+const runSync = async () => {
+  const since = store.state.presence?.lastSyncAt
+  if (!since) {
+    store.dispatch('presence/setLastSyncAt', new Date().toISOString())
+    return
+  }
+
+  try {
+    const { data } = await api.get('/sync', { params: { since } })
+    dispatchSyncEvent(data)
+    store.dispatch('presence/setLastSyncAt', new Date().toISOString())
+  } catch (err) {
+    console.warn('Sync failed', err)
+  }
+}
+
 function attachListeners(s: Socket) {
-  s.on('connect', () => {
+  s.on('connect', async () => {
     console.log('Socket connected:', s.id, 'userId:', s.auth?.userId)
+    const desiredStatus = preferredStatus()
+
+    markSelfStatus(desiredStatus)
+    s.emit('status:update', { status: desiredStatus })
+
+    await runSync()
   })
 
   s.on('disconnect', () => {
     console.warn('Socket disconnected')
+    markSelfStatus('offline')
+    store.dispatch('presence/setLastSyncAt', new Date().toISOString())
   })
 
   s.on('connect_error', (error) => {
     console.error('Socket connection error:', error)
+  })
+
+  s.on('user_status_changed', (payload) => {
+    if (payload?.userId && payload?.status) {
+      store.dispatch('presence/setStatus', {
+        userId: Number(payload.userId),
+        status: payload.status,
+      })
+    }
   })
 
   s.on('system', (payload) => {
@@ -78,7 +143,7 @@ function attachListeners(s: Socket) {
         store.dispatch('channels/handleChannelRemoved', payload.channelId)
         Notify.create({
           type: 'negative',
-          message: `Bol si odstránený z kanála #${payload.name || payload.channelId}`,
+          message: `Bol si odstraneny z kanala #${payload.name || payload.channelId}`,
           caption: 'channel revoked',
         })
         try {
@@ -92,7 +157,7 @@ function attachListeners(s: Socket) {
         store.dispatch('channels/handleChannelRemoved', payload.channelId)
         Notify.create({
           type: 'negative',
-          message: `Bol si vykopnutý z kanála #${payload.name || payload.channelId}`,
+          message: `Bol si vykopnuty z kanala #${payload.name || payload.channelId}`,
           caption: 'channel kicked',
         })
         try {
@@ -116,6 +181,10 @@ function attachListeners(s: Socket) {
     }
   })
 
+  s.on('new_message', (payload) => {
+    store.dispatch('channels/handleMessageNew', payload)
+  })
+
   // DEBUG: Log all socket events
   s.onAny((eventName, ...args) => {
     console.log('Socket event:', eventName, args)
@@ -124,7 +193,13 @@ function attachListeners(s: Socket) {
 
 function connect(app: any, userId: number) {
   console.log('[socket] connecting with userId:', userId)
-  if (socket) return socket
+  if (socket && socket.connected) return socket
+
+  if (socket && !socket.connected) {
+    socket.auth = { userId }
+    socket.connect()
+    return socket
+  }
 
   socket = io('http://localhost:3333', {
     transports: ['websocket'],
@@ -141,12 +216,17 @@ function connect(app: any, userId: number) {
   return socket
 }
 
+function handleVisibilityChange(visible: boolean) {
+  store.dispatch('presence/setAppVisibility', visible)
+  if (socket?.connected) {
+    socket.emit('client_visibility_changed', { visible })
+  }
+}
+
 export default boot(async ({ app }) => {
-  // Prefer already-loaded user
   let userId = store.state.auth?.user?.id
   console.log('[socket] boot start, initial userId in store:', userId)
 
-  // If not loaded, try to populate auth from API/token
   if (!userId) {
     try {
       const ok = await store.dispatch('auth/check')
@@ -159,23 +239,70 @@ export default boot(async ({ app }) => {
     }
   }
 
+  if (store.state.auth?.user?.state !== undefined) {
+    const initStatus = statusFromStateNumber(store.state.auth.user.state)
+    const preferred = store.state.presence?.selfStatus
+    if (initStatus !== 'offline' || !preferred || preferred === 'offline') {
+      store.dispatch('presence/setSelfStatus', initStatus)
+    }
+  }
+
   if (userId) {
-    connect(app, userId)
+    const initialStatus = preferredStatus()
+    if (initialStatus !== 'offline') {
+      connect(app, userId)
+    } else {
+      app.config.globalProperties.$socket = null
+      ;(window as any).$socket = null
+    }
   } else {
     console.warn('Socket not initialized: missing userId (login required)')
     app.config.globalProperties.$socket = null
     ;(window as any).$socket = null
+  }
 
-    // Watch for future login and connect once
-    store.watch(
-      (state) => state.auth?.user?.id,
-      (newId) => {
-        if (newId) {
+  store.watch(
+    (state) => state.auth?.user?.id,
+    (newId) => {
+      if (newId) {
+        const status = preferredStatus()
+        if (status !== 'offline') {
           console.log('[socket] store watch detected userId, connecting now:', newId)
           connect(app, newId)
         }
-      },
-      { immediate: false }
+      }
+    },
+    { immediate: false }
+  )
+
+  store.watch(
+    (state) => state.presence?.selfStatus,
+    (newStatus) => {
+      const uid = store.state.auth?.user?.id
+      if (!uid) return
+
+      if (newStatus === 'offline') {
+        if (socket?.connected) {
+          socket.emit('status:update', { status: 'offline' })
+        }
+        socket?.disconnect()
+        return
+      }
+
+      const active = connect(app, uid)
+      if (active?.connected) {
+        active.emit('status:update', { status: newStatus })
+        store.dispatch('presence/setStatus', { userId: uid, status: newStatus })
+      }
+    },
+    { immediate: false }
+  )
+
+  if (AppVisibility && typeof AppVisibility.listen === 'function') {
+    AppVisibility.listen((isVisible: boolean) => handleVisibilityChange(isVisible))
+  } else if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () =>
+      handleVisibilityChange(!document.hidden)
     )
   }
 })

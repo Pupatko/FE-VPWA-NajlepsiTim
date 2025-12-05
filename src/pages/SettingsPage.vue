@@ -141,7 +141,6 @@ onMounted(() => {
 
 const saveSettings = async () => {
   try {
-    // frontend string -> backend číslo
     const stateNumber: 1 | 2 | 3 =
       activityStatus.value === 'online'
         ? 1
@@ -149,15 +148,20 @@ const saveSettings = async () => {
         ? 2
         : 3
 
-    const updatedUser = await authService.updateSettings({
-      notificationMode: notificationSettings.value,
-      state: stateNumber,
-    })
+    await authService.updateNotificationPrefs(notificationSettings.value === 'mentions_only')
+    await authService.setStatus(activityStatus.value)
 
-    // update usera v store
-    store.commit('auth/SET_USER', updatedUser)
+    const current = store.state.auth.user as User | null
+    if (current) {
+      store.commit('auth/SET_USER', {
+        ...current,
+        notificationMode: notificationSettings.value,
+        state: stateNumber,
+      })
+    }
 
-    // uložiť aj do localStorage pre messageNotifications
+    store.dispatch('presence/setSelfStatus', activityStatus.value)
+
     localStorage.setItem(
       'notificationSettings',
       JSON.stringify({
@@ -181,6 +185,7 @@ const saveSettings = async () => {
     })
   }
 }
+
 
 const goBack = () => router.push('/')
 </script>
