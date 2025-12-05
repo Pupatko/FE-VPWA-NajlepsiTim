@@ -10,6 +10,7 @@ export interface Channel {
   isOwner?: boolean
   joinedAt?: string
   invited?: boolean
+  inviterNickName?: string
   pinned?: boolean
   lastActivityAt?: string | null
 }
@@ -76,10 +77,13 @@ const actions = {
     commit('REMOVE_CHANNEL', channelId)
   },
   handleChannelInvited({ commit }: any, payload: any) {
-    // Môžeš tu zobraziť notifikáciu o invite
-    console.log('Channel invitation received:', payload)
-    // Ak chceš pridať kanál po invite:
-    // commit('ADD_CHANNEL', payload)
+    commit('ADD_CHANNEL', {
+      id: payload.channelId,
+      name: payload.name,
+      private: payload.private,
+      invited: true,
+      inviterNickName: payload.inviterNickName,
+    })
   },
   handleChannelLeft({ commit }: any, payload: any) {
     // User opustil kanál
