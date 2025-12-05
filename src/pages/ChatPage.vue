@@ -1,17 +1,18 @@
 <template>
   <q-page class="chat-page">
     <div class="messages-area" ref="messagesContainer">
-      <q-infinite-scroll
-        ref="infiniteScrollRef"
-        @load="onLoad"
-        reverse
-      >
-        <template v-slot:loading>
-          <div class="row justify-center q-my-md">
-            <q-spinner color="primary" name="dots" size="40px" />
-          </div>
-        </template>
+      <div v-if="hasMore" class="load-more">
+        <q-btn
+          dense
+          outline
+          color="primary"
+          :label="isManualLoading || isLoading ? 'Loading...' : 'Load older messages'"
+          :loading="isManualLoading || isLoading"
+          @click="loadOlderManually"
+        />
+      </div>
 
+      <div class="messages-list">
         <MessageItem
           v-for="message in messages"
           :key="message.id"
@@ -20,7 +21,7 @@
           :current-user-id="currentUserId || undefined"
           :user-id="message.userId"
         />
-      </q-infinite-scroll>
+      </div>
 
       <div v-if="typingUsers.length" class="typing-bar">
         <div class="text-caption text-grey-4">{{ typingSummary }}</div>
@@ -50,6 +51,7 @@ import {
   watch,
   getCurrentInstance,
   computed,
+  nextTick,
 } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
@@ -104,14 +106,25 @@ const selectedPreviewUserId = ref<number | null>(null)
 const messages = ref<ChatMessage[]>([])
 const hasMore = ref(true)
 const isLoading = ref(false)
+const currentPage = ref(1)
+const initialLoaded = ref(false)
+const isManualLoading = ref(false)
+const PAGE_SIZE = 20
 
-const infiniteScrollRef = ref<any | null>(null)
+const messagesContainer = ref<HTMLElement | null>(null)
 
 const channelId = computed(() => {
   const id = Number(route.params.channelId)
   return Number.isNaN(id) ? null : id
 })
 const hasMessage = (id: number) => messages.value.some((m) => m.id === id)
+
+const shouldScrollToBottom = (senderIsSelf = false) => {
+  const el = messagesContainer.value
+  if (!el) return true
+  const distanceToBottom = el.scrollHeight - (el.scrollTop + el.clientHeight)
+  return senderIsSelf || distanceToBottom < 120
+}
 
 const mapBackendMessage = (m: BackendMessage | any): ChatMessage => ({
   id: m.id,
@@ -123,11 +136,16 @@ const mapBackendMessage = (m: BackendMessage | any): ChatMessage => ({
   mentionedUserId: m.mentionedUserId ?? m.mentioned_user_id ?? null,
 })
 
-const addMessage = (msg: ChatMessage, notify = false) => {
+const addMessage = (msg: ChatMessage, notify = false, fromRealtime = true) => {
   if (hasMessage(msg.id)) return
   messages.value.push(msg)
   if (notify) {
     maybeNotifyMessage(msg)
+  }
+
+  const senderIsSelf = msg.userId === currentUserId.value
+  if (fromRealtime && shouldScrollToBottom(senderIsSelf)) {
+    scrollToLatest()
   }
 }
 const userStatus = computed(() => store.state.presence?.selfStatus || 'online')
@@ -162,48 +180,72 @@ async function loadMeta() {
 // load one page of messages
 async function fetchMessages(page: number) {
   if (channelId.value === null) return
+  if (isLoading.value) return
+  isLoading.value = true
 
-  const response = await api.get<{
-    data: BackendMessage[]
-    meta: { page: number; limit: number; hasMore: boolean }
-  }>(`/channels/${channelId.value}/messages`, {
-    params: { page, limit: 20 },
-  })
+  try {
+    console.log('[Chat] fetchMessages page', page)
+    const container = messagesContainer.value
+    const prevHeight = container?.scrollHeight || 0
 
-  const backendMessages = response.data.data
+    const response = await api.get<{
+      data: BackendMessage[]
+      meta: { page: number; limit: number; hasMore: boolean }
+    }>(`/channels/${channelId.value}/messages`, {
+      params: { page, limit: PAGE_SIZE },
+    })
 
-  const mapped: ChatMessage[] = backendMessages
-    .map((m) => mapBackendMessage(m))
-    .filter((m) => !hasMessage(m.id))
+    const backendMessages = response.data.data
+    console.log('[Chat] backendMessages len', backendMessages.length)
 
-  if (page === 1 && messages.value.length === 0) {
-    messages.value = mapped
-  } else {
-    messages.value.unshift(...mapped)
+    const mapped: ChatMessage[] = backendMessages.map((m) => mapBackendMessage(m))
+    // dedupe only if already present (possible when manual load + ws overlap)
+    const deduped = mapped.filter((m) => !hasMessage(m.id))
+
+    if (page === 1 && messages.value.length === 0) {
+      messages.value = deduped
+    } else {
+      messages.value.unshift(...deduped)
+    }
+
+    const limit = response.data.meta?.limit ?? PAGE_SIZE
+    // infer hasMore purely from how many fresh items sme dostali
+    hasMore.value = deduped.length >= limit
+    currentPage.value = Math.max(currentPage.value, page)
+    if (deduped.length === 0 || deduped.length < limit) {
+      hasMore.value = false
+    }
+
+    if (page === 1) {
+      scrollToLatest()
+    } else if (container) {
+      // keep viewport position after prepending
+      nextTick(() => {
+        const newHeight = container.scrollHeight
+        const diff = newHeight - prevHeight
+        if (diff > 0) {
+          container.scrollTop = container.scrollTop + diff
+        }
+      })
+    }
+
+    console.log('[Chat] fetched', deduped.length, 'hasMore', hasMore.value)
+    return deduped.length
+  } finally {
+    isLoading.value = false
   }
-
-  hasMore.value = response.data.meta.hasMore
 }
 
 // handler for infinite scroll
-const onLoad = async (index: number, done: () => void) => {
-  if (isLoading.value || !hasMore.value) {
-    done()
-    return
-  }
-
-  isLoading.value = true
+const loadOlderManually = async () => {
+  if (isManualLoading.value || isLoading.value || !hasMore.value || channelId.value === null) return
+  isManualLoading.value = true
   try {
-    await fetchMessages(index)
-  } catch (error) {
-    console.error('Failed to load messages', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load messages',
-    })
+    const page = (currentPage.value || 1) + 1
+    console.log('[Chat] manual load older page', page)
+    await fetchMessages(page)
   } finally {
-    isLoading.value = false
-    done()
+    isManualLoading.value = false
   }
 }
 
@@ -285,8 +327,27 @@ function handleSyncEvent(event: Event) {
   })
 }
 
+const scrollToLatest = () => {
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      const el = messagesContainer.value || (document.querySelector('.messages-area') as HTMLElement | null)
+      const target =
+        el && el.scrollHeight > el.clientHeight
+          ? el
+          : (document.scrollingElement || document.documentElement || document.body)
+
+      if (target) {
+        target.scrollTop = target.scrollHeight
+      }
+    })
+  })
+}
+
 onMounted(async () => {
   await loadMeta()
+  await fetchMessages(1)
+  currentPage.value = 1
+  initialLoaded.value = true
 
   const socketInstance = getSocket()
   if (socketInstance) {
@@ -319,13 +380,13 @@ watch(
     draftPreviews.value = {}
     selectedPreviewUserId.value = null
     hasMore.value = true
-
-    if (infiniteScrollRef.value) {
-      infiniteScrollRef.value.reset()
-      infiniteScrollRef.value.resume()
-    }
+    currentPage.value = 1
+    initialLoaded.value = false
 
     await loadMeta()
+    await fetchMessages(1)
+    initialLoaded.value = true
+    scrollToLatest()
   }
 )
 
@@ -351,6 +412,12 @@ const previewText = computed(() => {
   overflow-y: auto;
   padding: 16px;
   background-color: $chat-bg;
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
 }
 
 .typing-bar {
@@ -380,3 +447,4 @@ const previewText = computed(() => {
   color: $text-inverse;
 }
 </style>
+
