@@ -17,6 +17,7 @@
           :key="message.id"
           :message="message"
           :current-user="currentUser"
+          :current-user-id="currentUserId || undefined"
           :user-id="message.userId"
         />
       </q-infinite-scroll>
