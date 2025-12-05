@@ -1,5 +1,5 @@
 <template>
-  <div v-if="users.length > 0" class="typing-indicator">
+  <div v-if="users.length > 0" class="typing-indicator row q-col-gutter-sm q-px-sm q-py-sm">
     <q-chip
       v-for="user in users"
       :key="user"
@@ -13,7 +13,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   users: {
     type: Array,
@@ -24,9 +24,6 @@ defineProps({
 
 <style scoped>
 .typing-indicator {
-  padding: 8px 16px;
-  display: flex;
-  gap: 8px;
   flex-wrap: wrap;
 }
 </style>

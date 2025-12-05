@@ -1,5 +1,5 @@
 <template>
-  <q-list class="channel-list">
+  <q-list class="channel-list q-pt-sm q-pb-lg">
     <div v-if="loading" class="q-pa-md text-center">
       <q-spinner color="primary" size="40px" />
       <div class="q-mt-sm text-grey-6">Loading channels...</div>
@@ -17,8 +17,9 @@
       clickable
       v-ripple
       :active="activeChannelId === channel.id"
-      active-class="bg-blue-9"
+      active-class="active-channel"
       @click="selectChannel(channel.id)"
+      class="q-px-md"
     >
       <q-item-section avatar>
         <q-icon :name="channel.private ? 'lock' : 'tag'" :color="channel.private ? 'amber' : 'blue-4'" />
@@ -90,15 +91,17 @@ onMounted(loadChannels)
 .q-item {
   border-left: 3px solid transparent;
   transition: all 0.2s;
+  border-radius: $border-radius;
 
   &:hover {
     background-color: rgba(255, 255, 255, 0.05);
     border-left-color: $primary;
   }
 
-  &.bg-blue-9 {
+  &.active-channel {
     background-color: $primary;
     border-left-color: $accent;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   }
 }
 </style>

@@ -1,7 +1,7 @@
 ﻿<template>
-  <q-layout view="lHh Lpr lFf" style="background: $chat-bg">
-    <q-header elevated>
-      <q-toolbar>
+  <q-layout view="lHh Lpr lFf" class="bg-grey-1">
+    <q-header elevated class="bg-primary text-white">
+      <q-toolbar class="q-px-md q-py-sm">
 
         <!-- left side with menu toggle -->
         <q-btn 
@@ -14,25 +14,24 @@
           aria-label="Toggle menu"
         />
         
-        <q-toolbar-title>
-          # {{ currentChannel }}
+        <q-toolbar-title class="text-weight-bold">
+          # {{ currentChannel || 'Choose a channel' }}
         </q-toolbar-title>
 
         <!-- right side -->
-        <div class="q-gutter-x-md">
+        <div class="row items-center q-gutter-sm">
           <q-btn
             flat
             round
+            dense
             icon="account_circle"
             @click="Profile"
             aria-label="Profile"
           />
-        </div>
-
-        <div class="q-gutter-x-md">
           <q-btn
             flat
             round
+            dense
             icon="settings"
             @click="Settings"
             aria-label="Settings"
@@ -52,28 +51,35 @@
       <ChannelPanel />
     </q-drawer>
 
-    <q-page-container class="custom-page-container">
+    <q-page-container class="custom-page-container q-px-md q-pt-md">
       <router-view />
     </q-page-container>
 
     <q-footer class="footer-container">
-      <div class="message-input-wrapper">
-        <MessageInput 
+      <div class="message-input-wrapper q-px-md q-py-sm">
+        <MessageInput
           @toggle-members="toggleMembers"
-          @send="handleSendMessage" 
+          @send="handleSendMessage"
           @typing="handleTyping" 
         />
-        
-        <!-- typing indicator below input -->
-        <!-- placeholder for typing indicator -->
       </div>
-    
     </q-footer>
+
+    <!-- 🔥 FLOATING SCROLL-TO-BOTTOM BUTTON -->
+    <q-btn
+      v-if="showScrollToBottom && isInChat"
+      fab
+      flat
+      unelevated
+      icon="keyboard_arrow_down"
+      class="scroll-bottom-btn scroll-bottom-styled"
+      @click="scrollToBottom"
+    />
   </q-layout>
 </template>
 
 <script lang="ts">
-import { ref, onMounted, watch, getCurrentInstance } from 'vue'
+import { ref, onMounted, watch, onUnmounted, computed, getCurrentInstance } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import ChannelPanel from '../components/ChannelPanel.vue'
@@ -102,11 +108,42 @@ export default {
       return s && s.connected ? s : null
     }
 
+    const showScrollToBottom = ref(false)
+
+    // 🔥 Funkcia ktorá prescrolluje na spodok
+    const scrollToBottom = () => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth'
+      })
+    }
+
+    // 🔥 Sme v chat kanáli?
+    const isInChat = computed(() => route.path.startsWith('/channels/'))
+
+    // 🔥 Listener na window scroll – funguje aj pri QLayout, QPageContainer, QFooter, router-view
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + window.innerHeight
+      const fullHeight = document.documentElement.scrollHeight
+
+      // zobrazíme button, ak je user hore viac ako 200px
+      showScrollToBottom.value = fullHeight - scrollPosition > 200
+    }
+
+    onMounted(() => {
+      window.addEventListener('scroll', handleScroll)
+      updateCurrentChannelFromRoute()
+    })
+
+    onUnmounted(() => {
+      window.removeEventListener('scroll', handleScroll)
+    })
+
     const toggleLeftDrawer = () => {
       leftDrawerOpen.value = !leftDrawerOpen.value
     }
 
-    const handleChannelSelect = (channelId: string | number) => {
+    const handleChannelSelect = (channelId) => {
       router.push(`/channels/${channelId}`)
     }
 
@@ -124,6 +161,7 @@ export default {
     }
 
     // Funkcia, ktora nacita nazov kanala podla ID z route
+    // 🔥 Načítanie názvu kanála podľa ID
     const updateCurrentChannelFromRoute = async () => {
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
@@ -142,7 +180,11 @@ export default {
       }
     }
 
-    const handleSendMessage = async (message: string) => {
+    watch(() => route.params.channelId, () => {
+      updateCurrentChannelFromRoute()
+    })
+
+    const handleSendMessage = async (message) => {
       const trimmed = message.trim()
 
       // prikaz?
@@ -153,6 +195,56 @@ export default {
 
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
+
+      if (message.startsWith('/join')) {
+        try {
+          const { data } = await api.post('/ws/command', {
+            content: message
+          })
+
+          $q.notify({
+            type: 'positive',
+            message: data.message || 'Pripojené do kanála',
+          })
+
+          if (data.channelId) {
+            router.push(`/channels/${data.channelId}`)
+          }
+
+        } catch (error) {
+          $q.notify({
+            type: 'negative',
+            message: error?.response?.data?.message || 'Join príkaz zlyhal',
+          })
+        }
+
+        return
+      }
+
+      if (message.startsWith('/join')) {
+        try {
+          const { data } = await api.post('/ws/command', {
+            content: message
+          })
+
+          $q.notify({
+            type: 'positive',
+            message: data.message || 'Pripojené do kanála',
+          })
+
+          if (data.channelId) {
+            router.push(`/channels/${data.channelId}`)
+          }
+
+        } catch (error) {
+          $q.notify({
+            type: 'negative',
+            message: error?.response?.data?.message || 'Join príkaz zlyhal',
+          })
+        }
+
+        return
+      }
 
       try {
         // ********************************************
@@ -190,85 +282,59 @@ export default {
                 return
               }
 
-              const newId = response.result?.channelId
-              if (newId) {
-                router.push(`/channels/${newId}`)
-              }
-
-              if (response.result?.message) {
-                $q.notify({ type: 'positive', message: response.result.message })
-              }
-            }
-          )
-
-          return
-        }
-
-        // **************************************************
-        // 2) OSTATNE PRIKAZY - povodne REST spracovanie
-        // **************************************************
-        if (isCommand) {
-          if (!channelId || Number.isNaN(channelId)) {
-            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
-            return
-          }
-
+      try {
+        if (message.startsWith('/')) {
           const { data } = await api.post('/ws/command', {
-            channelId,
-            content: trimmed,
+            content: message,
+            channelId
           })
 
-          if (trimmed.startsWith('/list')) {
+          // špeciálne pre /list
+          if (message.startsWith('/list')) {
             router.push(`/channels/${channelId}/members`)
             return
           }
 
           const msg =
-            data?.message ||
-            data?.result ||
-            data?.info ||
-            'Prikaz bol spracovany'
+            (data && (data.message || data.result || data.info)) ||
+            'Príkaz bol spracovaný'
 
-          $q.notify({ type: 'positive', message: msg })
+          $q.notify({
+            type: 'positive',
+            message: msg,
+          })
 
-          if (data?.channelId) {
+          // ak príkaz vrátil channelId (napr. /join), presmeruj do kanála
+          if (data && data.channelId) {
             router.push(`/channels/${data.channelId}`)
           }
 
           return
         }
 
-        // ********************************************
-        // 3) Bezna sprava - povodne REST odoslanie
-        // ********************************************
-        if (!channelId || Number.isNaN(channelId)) {
-          $q.notify({
-            type: 'warning',
-            message: 'Najprv si vyber kanal vlavo v zozname',
-          })
-          return
-        }
-
-        await api.post('/ws/message', {
+        // BEŽNÁ SPRÁVA
+        const { data } = await api.post('/ws/message', {
           channelId,
-          content: trimmed,
+          content: message,
         })
+        console.log('message sent', data)
       } catch (error: any) {
         console.error('send failed', error)
         $q.notify({
           type: 'negative',
-          message: error?.response?.data?.message || 'Nepodarilo sa odoslat spravu / prikaz',
+          message:
+            error?.response?.data?.message ||
+            'Nepodarilo sa odoslať správu / príkaz',
         })
       }
     }
 
-    const handleTyping = async (isTyping: boolean) => {
+
+    const handleTyping = async (isTyping) => {
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
 
-      if (!channelId || Number.isNaN(channelId)) {
-        return
-      }
+      if (!channelId || Number.isNaN(channelId)) return
 
       try {
         await api.post('/ws/typing', {
@@ -294,12 +360,12 @@ export default {
       router.push('/profile')
     }
 
-    // Pri prvom nacitani layoutu nastav nazov kanala podla aktualnej route
+    // 🔄 Pri prvom načítaní layoutu nastav názov kanála podľa aktuálnej route
     onMounted(() => {
       updateCurrentChannelFromRoute()
     })
 
-    // Pri kazdom prepnuti kanala (zmena route parametra) obnov nazov
+    // 🔄 Pri každom prepnutí kanála (zmena route parametra) obnov názov
     watch(
       () => route.params.channelId,
       () => {
@@ -319,6 +385,9 @@ export default {
       handleSendMessage,
       handleTyping,
       toggleMembers,
+      showScrollToBottom,
+      scrollToBottom,
+      isInChat
     }
   },
 }
@@ -336,7 +405,7 @@ export default {
   padding-bottom: 180px;
   
   &.expanded {
-    flex: 1 1 auto; /* roztiahne sa na celu vysku */
+    flex: 1 1 auto; /* rozťahne sa na celú výšku */
   }
 }
 
@@ -352,8 +421,8 @@ export default {
   left: 0;
   right: 0;
   z-index: 1000;
-  background-color: transparent;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  background-color: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.12);
 }
 
 .message-input-wrapper {
@@ -362,7 +431,21 @@ export default {
   position: relative;
 }
 
-.typing-indicator-container {
-  padding: 0 16px 8px 16px;
+.scroll-bottom-styled {
+  background: white !important;
+  border: 2px solid #9b4dff !important; /* tvoje fialové PS */
+  color: #9b4dff !important; /* ikonka fialová */
 }
+
+.scroll-bottom-btn {
+  position: fixed;
+  bottom: 95px; 
+  right: 24px;
+  z-index: 2000;
+
+  width: 56px; 
+  height: 56px;
+  border-radius: 50%;
+}
+
 </style>
