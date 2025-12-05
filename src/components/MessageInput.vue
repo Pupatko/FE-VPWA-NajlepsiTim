@@ -9,6 +9,7 @@
       input-class="text-body1"
       @keyup.enter="sendMessage"
       @keyup="handleTyping"
+      @input="handleDraft"
       clearable
       color="primary"
     >
@@ -50,7 +51,7 @@
 import { ref } from 'vue'
 
 export default {
-  emits: ['send', 'typing', 'toggle-members'],
+  emits: ['send', 'typing', 'toggle-members', 'draft'],
   setup(props, { emit }) {
     const messageText = ref('')
     let typingTimeout: number | null = null
@@ -58,12 +59,15 @@ export default {
     const sendMessage = () => {
       if (messageText.value.trim()) {
         emit('send', messageText.value.trim())
+        // clear draft on send
+        emit('draft', '')
         messageText.value = ''
       }
     }
 
     const handleTyping = () => {
       emit('typing', true)
+      emit('draft', messageText.value)
 
       if (typingTimeout) clearTimeout(typingTimeout)
 
@@ -76,11 +80,16 @@ export default {
       emit('toggle-members', true)
     }
 
+    const handleDraft = () => {
+      emit('draft', messageText.value)
+    }
+
     return {
       messageText,
       sendMessage,
       handleTyping,
       toggleMembers,
+      handleDraft,
     }
   }
 }

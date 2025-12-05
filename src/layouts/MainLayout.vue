@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <q-layout view="lHh Lpr lFf" class="bg-grey-1">
     <q-header elevated class="bg-primary text-white">
       <q-toolbar class="q-px-md q-py-sm">
@@ -59,6 +59,7 @@
           @toggle-members="toggleMembers"
           @send="handleSendMessage"
           @typing="handleTyping"
+          @draft="handleDraft"
         />
       </div>
     </q-footer>
@@ -151,8 +152,12 @@ export default {
 
     const handleSendMessage = async (message: string) => {
       const trimmed = message.trim()
+
+      // command?
       const isCommand = trimmed.startsWith('/')
+
       const socket = getSocket()
+
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
 
@@ -160,7 +165,6 @@ export default {
         // /join via socket
         if (isCommand && trimmed.startsWith('/join')) {
           if (!socket) {
-            console.warn('send: /join without active socket')
             $q.notify({ type: 'negative', message: 'WebSocket nie je pripojeny.' })
             return
           }
@@ -393,6 +397,10 @@ export default {
           channelId,
           content: trimmed,
         })
+        // clear draft preview for others
+        if (socket) {
+          socket.emit('draft:update', { channelId, text: '' })
+        }
       } catch (error: any) {
         console.error('send failed', error)
         $q.notify({
@@ -402,20 +410,34 @@ export default {
       }
     }
 
-    const handleTyping = async (isTyping: boolean) => {
+    const handleTyping = (isTyping: boolean) => {
       const channelIdParam = route.params.channelId
       const channelId = Number(channelIdParam)
 
-      if (!channelId || Number.isNaN(channelId)) return
-
-      try {
-        await api.post('/ws/typing', {
-          channelId,
-          isTyping,
-        })
-      } catch (error) {
-        console.error('typing failed', error)
+      const socket = getSocket()
+      if (!socket || !channelId || Number.isNaN(channelId)) {
+        return
       }
+
+      socket.emit('typing:update', {
+        channelId,
+        isTyping,
+      })
+    }
+
+    const handleDraft = (text: string) => {
+      const channelIdParam = route.params.channelId
+      const channelId = Number(channelIdParam)
+
+      const socket = getSocket()
+      if (!socket || !channelId || Number.isNaN(channelId)) {
+        return
+      }
+
+      socket.emit('draft:update', {
+        channelId,
+        text,
+      })
     }
 
     const toggleMembers = () => {
@@ -423,8 +445,14 @@ export default {
       if (channelId) router.push(`/channels/${channelId}/members`)
     }
 
-    const Settings = () => router.push('/settings')
-    const Profile = () => router.push('/profile')
+
+    const Settings = () => {
+      router.push('/settings')
+    }
+
+    const Profile = () => {
+      router.push('/profile')
+    }
 
     onMounted(() => {
       window.addEventListener('scroll', handleScroll)
@@ -453,6 +481,7 @@ export default {
       handleChannelSelect,
       handleSendMessage,
       handleTyping,
+      handleDraft,
       toggleMembers,
       showScrollToBottom,
       scrollToBottom,
