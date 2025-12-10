@@ -7,6 +7,7 @@ import type { PresenceStatus } from 'src/store/modules/presence'
 
 let socket: Socket | null = null
 const SYNC_EVENT = 'chat:sync'
+let lastPresenceStatus: PresenceStatus | null = store.state.presence?.selfStatus ?? null
 
 declare module '@vue/runtime-core' {
   interface ComponentCustomProperties {
@@ -278,6 +279,9 @@ export default boot(async ({ app }) => {
   store.watch(
     (state) => state.presence?.selfStatus,
     (newStatus) => {
+      const previousStatus = lastPresenceStatus
+      lastPresenceStatus = newStatus
+
       const uid = store.state.auth?.user?.id
       if (!uid) return
 
@@ -293,6 +297,13 @@ export default boot(async ({ app }) => {
       if (active?.connected) {
         active.emit('status:update', { status: newStatus })
         store.dispatch('presence/setStatus', { userId: uid, status: newStatus })
+      }
+
+      if (previousStatus === 'offline' && newStatus === 'online') {
+        store.dispatch('channels/fetchMyChannels').catch((err: unknown) => {
+          console.warn('Failed to refresh channels after reconnect', err)
+        })
+        void runSync()
       }
     },
     { immediate: false }

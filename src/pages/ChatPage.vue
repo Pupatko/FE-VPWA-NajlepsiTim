@@ -54,13 +54,12 @@ import {
   nextTick,
 } from 'vue'
 import { useRoute } from 'vue-router'
-import { useQuasar } from 'quasar'
 import { useStore } from 'vuex'
 import { api } from 'src/boot/axios'
 import authService from 'src/services/auth.service'
 import channelService from 'src/services/channel.service'
 import MessageItem from '../components/MessageItem.vue'
-import { messageNotifications } from '../services/messageNotifications'
+import { useMessageNotifications } from '../services/messageNotifications'
 
 interface BackendMessage {
   id: number
@@ -87,9 +86,9 @@ interface ChatMessage {
 
 const SYNC_EVENT = 'chat:sync'
 
-const $q = useQuasar()
 const route = useRoute()
 const store = useStore()
+const { notifyOnMessage, ensurePermission } = useMessageNotifications()
 
 const getSocket = () => {
   const internalInstance = getCurrentInstance()
@@ -174,7 +173,7 @@ async function loadMeta() {
     currentChannel.value = channelId.value !== null ? `channel-${channelId.value}` : ''
   }
 
-  messageNotifications.init($q)
+  await ensurePermission()
 }
 
 // load one page of messages
@@ -255,6 +254,7 @@ function handleSocketMessage(payload: any) {
 
   const msgChannelId = payload.channelId ?? payload.channel_id
   if (msgChannelId !== channelId.value) return
+  if (userStatus.value === 'offline') return
 
   const chatMessage = mapBackendMessage(payload)
   addMessage(chatMessage, true)
@@ -305,11 +305,12 @@ function maybeNotifyMessage(msg: ChatMessage) {
   const uid = currentUserId.value
   if (!uid) return
 
-  messageNotifications.notifyNewMessage({
+  void notifyOnMessage({
     message: { ...msg },
     channelName: currentChannel.value || (channelId.value !== null ? `channel-${channelId.value}` : 'channel'),
     senderName: msg.author,
     currentUserId: uid,
+    currentUserNick: currentUser.value,
     userStatus: userStatus.value,
     notifyMentionsOnly: notifyMentionsOnly.value,
     appVisible: appVisible.value,
