@@ -6,6 +6,7 @@ import store from 'src/store'
 import type { PresenceStatus } from 'src/store/modules/presence'
 
 let socket: Socket | null = null
+let socketUserId: number | null = null
 const SYNC_EVENT = 'chat:sync'
 let lastPresenceStatus: PresenceStatus | null = store.state.presence?.selfStatus ?? null
 
@@ -60,9 +61,29 @@ const runSync = async () => {
   }
 }
 
+function setSocketRefs(app: any, value: Socket | null) {
+  app.config.globalProperties.$socket = value
+  ;(window as any).$socket = value
+}
+
+function disconnectSocket(app: any) {
+  try {
+    socket?.disconnect()
+  } catch (err) {
+    console.warn('Socket disconnect failed', err)
+  }
+  socket = null
+  socketUserId = null
+  setSocketRefs(app, null)
+}
+
 function attachListeners(s: Socket) {
   s.on('connect', async () => {
     console.log('Socket connected:', s.id, 'userId:', s.auth?.userId)
+    const handshakeUserId = Number((s.auth as any)?.userId)
+    if (!Number.isNaN(handshakeUserId)) {
+      socketUserId = handshakeUserId
+    }
     const desiredStatus = preferredStatus()
 
     markSelfStatus(desiredStatus)
@@ -73,6 +94,7 @@ function attachListeners(s: Socket) {
 
   s.on('disconnect', () => {
     console.warn('Socket disconnected')
+    socketUserId = null
     markSelfStatus('offline')
     store.dispatch('presence/setLastSyncAt', new Date().toISOString())
   })
@@ -194,11 +216,17 @@ function attachListeners(s: Socket) {
 
 function connect(app: any, userId: number) {
   console.log('[socket] connecting with userId:', userId)
+  if (socket && socketUserId && socketUserId !== userId) {
+    disconnectSocket(app)
+  }
+
   if (socket && socket.connected) return socket
 
   if (socket && !socket.connected) {
     socket.auth = { userId }
+    socketUserId = userId
     socket.connect()
+    setSocketRefs(app, socket)
     return socket
   }
 
@@ -206,11 +234,11 @@ function connect(app: any, userId: number) {
     transports: ['websocket'],
     auth: { userId },
   })
+  socketUserId = userId
 
   attachListeners(socket)
 
-  app.config.globalProperties.$socket = socket
-  ;(window as any).$socket = socket
+  setSocketRefs(app, socket)
 
   console.log('Socket.IO initializing...', `for user ${userId}`)
 
@@ -265,12 +293,16 @@ export default boot(async ({ app }) => {
   store.watch(
     (state) => state.auth?.user?.id,
     (newId) => {
-      if (newId) {
-        const status = preferredStatus()
-        if (status !== 'offline') {
-          console.log('[socket] store watch detected userId, connecting now:', newId)
-          connect(app, newId)
-        }
+      if (!newId) {
+        console.log('[socket] user logged out, disconnecting socket')
+        disconnectSocket(app)
+        return
+      }
+
+      const status = preferredStatus()
+      if (status !== 'offline') {
+        console.log('[socket] store watch detected userId, connecting now:', newId)
+        connect(app, newId)
       }
     },
     { immediate: false }
