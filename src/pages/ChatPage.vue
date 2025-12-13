@@ -1,17 +1,10 @@
 <template>
   <q-page class="chat-page">
-    <div class="messages-area" ref="messagesContainer">
-      <div v-if="hasMore" class="load-more">
-        <q-btn
-          dense
-          outline
-          color="primary"
-          :label="isManualLoading || isLoading ? 'Loading...' : 'Load older messages'"
-          :loading="isManualLoading || isLoading"
-          @click="loadOlderManually"
-        />
-      </div>
-
+    <div
+      class="messages-area"
+      ref="messagesContainer"
+      @scroll="onScroll"
+    >
       <div class="messages-list">
         <MessageItem
           v-for="message in messages"
@@ -23,6 +16,18 @@
         />
       </div>
 
+      <!-- Go to latest button -->
+      <div v-if="!isAtBottom && messages.value.length" class="go-to-latest">
+        <q-btn
+          dense
+          outline
+          color="primary"
+          label="↓ Go to latest"
+          @click="scrollToLatest(true)"
+        />
+      </div>
+
+      <!-- Typing users + draft preview -->
       <div v-if="typingUsers.length" class="typing-bar">
         <div class="text-caption text-grey-4">{{ typingSummary }}</div>
         <div class="row q-gutter-sm">
@@ -85,20 +90,14 @@ interface ChatMessage {
 }
 
 const SYNC_EVENT = 'chat:sync'
-
 const route = useRoute()
 const store = useStore()
 const { notifyOnMessage, ensurePermission } = useMessageNotifications()
 
-const getSocket = () => {
-  const internalInstance = getCurrentInstance()
-  const instanceSocket = internalInstance?.appContext.config.globalProperties.$socket as any
-  return instanceSocket || (window as any).$socket
-}
-
+const messagesContainer = ref<HTMLElement | null>(null)
 const currentUser = ref<string>('me')
 const currentUserId = ref<number | null>(null)
-const currentChannel = ref<string>('') // channel name from backend
+const currentChannel = ref<string>('')
 const typingUsers = ref<{ userId: number; nick: string }[]>([])
 const draftPreviews = ref<Record<number, string>>({})
 const selectedPreviewUserId = ref<number | null>(null)
@@ -107,24 +106,40 @@ const hasMore = ref(true)
 const isLoading = ref(false)
 const currentPage = ref(1)
 const initialLoaded = ref(false)
-const isManualLoading = ref(false)
 const PAGE_SIZE = 20
-
-const messagesContainer = ref<HTMLElement | null>(null)
 
 const channelId = computed(() => {
   const id = Number(route.params.channelId)
   return Number.isNaN(id) ? null : id
 })
+
 const hasMessage = (id: number) => messages.value.some((m) => m.id === id)
+
+/* Scroll logic */
+const isAtBottom = computed(() => {
+  const el = messagesContainer.value
+  if (!el) return true
+  return el.scrollHeight - (el.scrollTop + el.clientHeight) < 20
+})
 
 const shouldScrollToBottom = (senderIsSelf = false) => {
   const el = messagesContainer.value
   if (!el) return true
-  const distanceToBottom = el.scrollHeight - (el.scrollTop + el.clientHeight)
-  return senderIsSelf || distanceToBottom < 120
+  const distance = el.scrollHeight - (el.scrollTop + el.clientHeight)
+  return senderIsSelf || distance < 120
 }
 
+const scrollToLatest = (force = false) => {
+  nextTick(() => {
+    const el = messagesContainer.value
+    if (!el) return
+    if (force || isAtBottom.value) {
+      el.scrollTop = el.scrollHeight
+    }
+  })
+}
+
+/* Map backend message to frontend */
 const mapBackendMessage = (m: BackendMessage | any): ChatMessage => ({
   id: m.id,
   userId: m.userId ?? m.user_id ?? 0,
@@ -135,9 +150,11 @@ const mapBackendMessage = (m: BackendMessage | any): ChatMessage => ({
   mentionedUserId: m.mentionedUserId ?? m.mentioned_user_id ?? null,
 })
 
+/* Add message to list */
 const addMessage = (msg: ChatMessage, notify = false, fromRealtime = true) => {
   if (hasMessage(msg.id)) return
   messages.value.push(msg)
+
   if (notify) {
     maybeNotifyMessage(msg)
   }
@@ -147,43 +164,13 @@ const addMessage = (msg: ChatMessage, notify = false, fromRealtime = true) => {
     scrollToLatest()
   }
 }
-const userStatus = computed(() => store.state.presence?.selfStatus || 'online')
-const notifyMentionsOnly = computed(
-  () => store.state.auth?.user?.notificationMode === 'mentions_only'
-)
-const appVisible = computed(() => store.state.presence?.appVisible !== false)
 
-// load user/channel meta
-async function loadMeta() {
-  try {
-    const me = await authService.me()
-    currentUser.value = me.nickName
-    currentUserId.value = me.id
-  } catch (error) {
-    console.error('Failed to load current user', error)
-  }
-
-  try {
-    if (channelId.value !== null) {
-      const channel = await channelService.getChannel(channelId.value)
-      currentChannel.value = channel.name
-    }
-  } catch (error) {
-    console.error('Failed to load channel info', error)
-    currentChannel.value = channelId.value !== null ? `channel-${channelId.value}` : ''
-  }
-
-  await ensurePermission()
-}
-
-// load one page of messages
+/* Fetch messages (infinite scroll) */
 async function fetchMessages(page: number) {
-  if (channelId.value === null) return
-  if (isLoading.value) return
+  if (channelId.value === null || isLoading.value) return
   isLoading.value = true
 
   try {
-    console.log('[Chat] fetchMessages page', page)
     const container = messagesContainer.value
     const prevHeight = container?.scrollHeight || 0
 
@@ -191,14 +178,11 @@ async function fetchMessages(page: number) {
       data: BackendMessage[]
       meta: { page: number; limit: number; hasMore: boolean }
     }>(`/channels/${channelId.value}/messages`, {
-      params: { page, limit: PAGE_SIZE },
+      params: { page, limit: PAGE_SIZE }
     })
 
-    const backendMessages = response.data.data
-    console.log('[Chat] backendMessages len', backendMessages.length)
-
-    const mapped: ChatMessage[] = backendMessages.map((m) => mapBackendMessage(m))
-    // dedupe only if already present (possible when manual load + ws overlap)
+    const backend = response.data.data
+    const mapped = backend.map(mapBackendMessage)
     const deduped = mapped.filter((m) => !hasMessage(m.id))
 
     if (page === 1 && messages.value.length === 0) {
@@ -207,83 +191,107 @@ async function fetchMessages(page: number) {
       messages.value.unshift(...deduped)
     }
 
-    const limit = response.data.meta?.limit ?? PAGE_SIZE
-    // infer hasMore purely from how many fresh items sme dostali
-    hasMore.value = deduped.length >= limit
+    hasMore.value = deduped.length >= (response.data.meta?.limit ?? PAGE_SIZE)
     currentPage.value = Math.max(currentPage.value, page)
-    if (deduped.length === 0 || deduped.length < limit) {
-      hasMore.value = false
-    }
 
     if (page === 1) {
       scrollToLatest()
     } else if (container) {
-      // keep viewport position after prepending
       nextTick(() => {
         const newHeight = container.scrollHeight
         const diff = newHeight - prevHeight
-        if (diff > 0) {
-          container.scrollTop = container.scrollTop + diff
-        }
+        if (diff > 0) container.scrollTop += diff
       })
     }
 
-    console.log('[Chat] fetched', deduped.length, 'hasMore', hasMore.value)
     return deduped.length
   } finally {
     isLoading.value = false
   }
 }
 
-// handler for infinite scroll
-const loadOlderManually = async () => {
-  if (isManualLoading.value || isLoading.value || !hasMore.value || channelId.value === null) return
-  isManualLoading.value = true
-  try {
-    const page = (currentPage.value || 1) + 1
-    console.log('[Chat] manual load older page', page)
-    await fetchMessages(page)
-  } finally {
-    isManualLoading.value = false
+/* Infinite scroll on scroll */
+const onScroll = async () => {
+  const el = messagesContainer.value
+  if (!el || !hasMore.value || isLoading.value) return
+  if (el.scrollTop < 200) {
+    const nextPage = currentPage.value + 1
+    await fetchMessages(nextPage)
   }
 }
 
-// realtime messages
-function handleSocketMessage(payload: any) {
-  if (!payload || channelId.value === null) return
-
-  const msgChannelId = payload.channelId ?? payload.channel_id
-  if (msgChannelId !== channelId.value) return
-  if (userStatus.value === 'offline') return
-
-  const chatMessage = mapBackendMessage(payload)
-  addMessage(chatMessage, true)
+/* Socket getter */
+const getSocket = () => {
+  const internalInstance = getCurrentInstance()
+  const inst = internalInstance?.appContext.config.globalProperties.$socket as any
+  return inst || (window as any).$socket
 }
 
-// typing handler
+/* Computed */
+const userStatus = computed(() => store.state.presence?.selfStatus || 'online')
+const notifyMentionsOnly = computed(
+  () => store.state.auth?.user?.notificationMode === 'mentions_only'
+)
+const appVisible = computed(() => store.state.presence?.appVisible !== false)
+const typingSummary = computed(() => {
+  if (!typingUsers.value.length) return ''
+  return typingUsers.value.map((u) => u.nick).join(', ') + ' is typing...'
+})
+const previewText = computed(() => {
+  if (selectedPreviewUserId.value == null) return ''
+  return draftPreviews.value[selectedPreviewUserId.value] || ''
+})
+
+/* Load user/channel meta */
+async function loadMeta() {
+  try {
+    const me = await authService.me()
+    currentUser.value = me.nickName
+    currentUserId.value = me.id
+  } catch (err) {
+    console.error('Failed to load current user', err)
+  }
+
+  try {
+    if (channelId.value !== null) {
+      const channel = await channelService.getChannel(channelId.value)
+      currentChannel.value = channel.name
+    }
+  } catch (err) {
+    console.error('Failed to load channel', err)
+    currentChannel.value =
+      channelId.value !== null ? `channel-${channelId.value}` : ''
+  }
+
+  await ensurePermission()
+}
+
+/* Socket events */
+function handleSocketMessage(payload: any) {
+  if (!payload || channelId.value === null) return
+  const msgChannelId = payload.channelId ?? payload.channel_id
+  if (msgChannelId !== channelId.value || userStatus.value === 'offline') return
+  addMessage(mapBackendMessage(payload), true)
+}
+
 function handleSocketTyping(payload: any) {
   if (!payload || channelId.value === null) return
-
   const msgChannelId = payload.channelId ?? payload.channel_id
   if (msgChannelId !== channelId.value) return
 
   const uid = Number(payload.userId)
-  const name: string = payload.nickName ?? `User ${uid || 'unknown'}`
-
+  const nick = payload.nickName ?? `User ${uid}`
   if (payload.isTyping) {
-    if (!typingUsers.value.find((u) => u.userId === uid)) {
-      typingUsers.value.push({ userId: uid, nick: name })
+    if (!typingUsers.value.find(u => u.userId === uid)) {
+      typingUsers.value.push({ userId: uid, nick })
     }
   } else {
-    typingUsers.value = typingUsers.value.filter((u) => u.userId !== uid)
+    typingUsers.value = typingUsers.value.filter(u => u.userId !== uid)
     delete draftPreviews.value[uid]
-    if (selectedPreviewUserId.value === uid) {
-      selectedPreviewUserId.value = null
-    }
+    if (selectedPreviewUserId.value === uid) selectedPreviewUserId.value = null
   }
 }
 
-// draft preview handler
 function handleSocketDraft(payload: any) {
   if (!payload || channelId.value === null) return
   const msgChannelId = payload.channelId ?? payload.channel_id
@@ -292,22 +300,17 @@ function handleSocketDraft(payload: any) {
   const uid = Number(payload.userId)
   const text = payload.text?.toString() ?? ''
   if (!uid) return
-
-  if (text.trim().length === 0) {
-    delete draftPreviews.value[uid]
-    return
-  }
-
-  draftPreviews.value[uid] = text
+  if (!text.trim()) delete draftPreviews.value[uid]
+  else draftPreviews.value[uid] = text
 }
 
 function maybeNotifyMessage(msg: ChatMessage) {
   const uid = currentUserId.value
   if (!uid) return
-
   void notifyOnMessage({
     message: { ...msg },
-    channelName: currentChannel.value || (channelId.value !== null ? `channel-${channelId.value}` : 'channel'),
+    channelName:
+      currentChannel.value || (channelId.value !== null ? `channel-${channelId.value}` : 'channel'),
     senderName: msg.author,
     currentUserId: uid,
     currentUserNick: currentUser.value,
@@ -320,59 +323,41 @@ function maybeNotifyMessage(msg: ChatMessage) {
 function handleSyncEvent(event: Event) {
   const detail = (event as CustomEvent<any>).detail
   if (!detail?.messages || channelId.value === null) return
-  const key = String(channelId.value)
-  const items = detail.messages[key] || []
-  items.forEach((raw: any) => {
-    const mapped = mapBackendMessage(raw)
-    addMessage(mapped, false)
-  })
+  const items = detail.messages[String(channelId.value)] || []
+  items.forEach((raw: any) => addMessage(mapBackendMessage(raw), false))
 }
 
-const scrollToLatest = () => {
-  nextTick(() => {
-    requestAnimationFrame(() => {
-      const el = messagesContainer.value || (document.querySelector('.messages-area') as HTMLElement | null)
-      const target =
-        el && el.scrollHeight > el.clientHeight
-          ? el
-          : (document.scrollingElement || document.documentElement || document.body)
-
-      if (target) {
-        target.scrollTop = target.scrollHeight
-      }
-    })
-  })
-}
-
+/* Mounted/unmounted */
 onMounted(async () => {
   await loadMeta()
   await fetchMessages(1)
   currentPage.value = 1
   initialLoaded.value = true
 
-  const socketInstance = getSocket()
-  if (socketInstance) {
-    socketInstance.on('message', handleSocketMessage)
-    socketInstance.on('new_message', handleSocketMessage)
-    socketInstance.on('typing', handleSocketTyping)
-    socketInstance.on('draft_preview', handleSocketDraft)
+  const socket = getSocket()
+  if (socket) {
+    socket.on('message', handleSocketMessage)
+    socket.on('new_message', handleSocketMessage)
+    socket.on('typing', handleSocketTyping)
+    socket.on('draft_preview', handleSocketDraft)
   }
 
   window.addEventListener(SYNC_EVENT, handleSyncEvent as any)
+  scrollToLatest(true)
 })
 
 onUnmounted(() => {
-  const socketInstance = getSocket()
-  if (socketInstance) {
-    socketInstance.off('message', handleSocketMessage)
-    socketInstance.off('new_message', handleSocketMessage)
-    socketInstance.off('typing', handleSocketTyping)
-    socketInstance.off('draft_preview', handleSocketDraft)
+  const socket = getSocket()
+  if (socket) {
+    socket.off('message', handleSocketMessage)
+    socket.off('new_message', handleSocketMessage)
+    socket.off('typing', handleSocketTyping)
+    socket.off('draft_preview', handleSocketDraft)
   }
   window.removeEventListener(SYNC_EVENT, handleSyncEvent as any)
 })
 
-// reset on channel change
+/* Route change — reset + reload */
 watch(
   () => route.params.channelId,
   async () => {
@@ -387,65 +372,81 @@ watch(
     await loadMeta()
     await fetchMessages(1)
     initialLoaded.value = true
-    scrollToLatest()
+    scrollToLatest(true)
   }
 )
-
-const typingSummary = computed(() => {
-  if (!typingUsers.value.length) return ''
-  const names = typingUsers.value.map((u) => u.nick)
-  return `${names.join(', ')} is typing...`
-})
-
-const previewText = computed(() => {
-  if (selectedPreviewUserId.value == null) return ''
-  return draftPreviews.value[selectedPreviewUserId.value] || ''
-})
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .chat-page {
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: var(--font-family);
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 
 .messages-area {
-  height: 100%;
+  flex: 1;
   overflow-y: auto;
-  padding: 16px;
-  background-color: $chat-bg;
+  padding: 0 16px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-accent) var(--color-bg-secondary);
 }
 
-.load-more {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 12px;
+.messages-area::-webkit-scrollbar {
+  width: 8px;
+}
+.messages-area::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+.messages-area::-webkit-scrollbar-thumb {
+  background-color: var(--color-accent);
+  border-radius: 10px;
 }
 
 .typing-bar {
   position: sticky;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  color: $text-inverse;
-  padding: 6px 12px;
-  border-radius: $border-radius;
+  background-color: #1E1F29;
+  color: var(--color-text);
+  padding: 8px 12px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.4); 
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  z-index: 10;
 }
 
 .typing-chip {
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.1);
+  background-color: #2A2C3B;
   padding: 4px 8px;
-  border-radius: $border-radius;
+  border-radius: 6px;
+  color: #ffffff;
+  font-weight: 500;
 }
 
 .draft-preview {
-  margin-top: 2px;
-  background: rgba(255, 255, 255, 0.06);
-  padding: 8px;
-  border-radius: $border-radius;
-  color: $text-inverse;
+  margin-top: 4px;
+  background-color: #292B3B; 
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: #E0E0E0;
+  font-style: italic;
+  max-width: 80%;
+  white-space: pre-wrap;
+}
+
+
+.go-to-latest {
+  position: sticky;
+  bottom: 60px;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
 }
 </style>
-
