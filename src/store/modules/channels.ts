@@ -52,10 +52,10 @@ const mutations = {
   ADD_CHANNEL(state: ChannelsState, ch: Channel) {
     const idx = state.list.findIndex(c => c.id === ch.id)
     if (idx === -1) {
-      // Pridaj na začiatok pre lepšiu viditeľnosť
+      // add to front for visibility
       state.list = [ch, ...state.list]
     } else {
-      // Update existujúci - vytvor nové pole pre reaktivitu
+      // update existing entry and keep reactivity
       state.list = [
         ...state.list.slice(0, idx),
         { ...state.list[idx], ...ch },
@@ -69,7 +69,7 @@ const mutations = {
   UPDATE_CHANNEL(state: ChannelsState, ch: Partial<Channel> & { id: number }) {
     const idx = state.list.findIndex(c => c.id === ch.id)
     if (idx !== -1) {
-      // Vytvor nové pole pre reaktivitu
+      // build new array for reactivity
       state.list = [
         ...state.list.slice(0, idx),
         { ...state.list[idx], ...ch },
@@ -119,14 +119,14 @@ const actions = {
     })
   },
   handleChannelLeft({ commit }: any, payload: any) {
-    // User opustil kanál
+    // user left channel
     console.log('User left channel:', payload)
     if (payload.channelId) {
       commit('REMOVE_CHANNEL', payload.channelId)
     }
   },
   handleMessageNew({ commit, state }: any, payload: any) {
-    // Nová správa - môžeš tu updatnúť lastActivityAt
+    // new message - bump lastActivityAt
     console.log('New message in channel:', payload)
     if (payload.channelId) {
       const channel = state.list.find((c: Channel) => c.id === payload.channelId)
@@ -139,12 +139,12 @@ const actions = {
     }
   },
   handleChannelClosed({ commit, dispatch }: any, payload: any) {
-    // Kanál bol zatvorený - odstráň ho a presmeruj usera
+    // channel closed - remove and redirect
     console.log('Channel closed, removing from list:', payload.channelId)
     commit('REMOVE_CHANNEL', payload.channelId)
     
-    // Ak je user práve v tomto kanáli, presmeruj ho
-    // Toto spraví router v komponente, ktorý počúva na store changes
+    // if user is on this channel, redirect
+    // handled by router reacting to store changes
   },
   acceptInvite({ commit }: any, payload: Channel) {
     // remove pending flag and add channel entry
@@ -164,3 +164,4 @@ export const channelsModule: Module<ChannelsState, RootState> = {
 }
 
 export default channelsModule
+

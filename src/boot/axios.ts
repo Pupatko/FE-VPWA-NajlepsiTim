@@ -10,18 +10,18 @@ declare module '@vue/runtime-core' {
   }
 }
 
-// ✅ OPRAVA - pridaný /api suffix
+// api client with /api base path
 const api = axios.create({
-  baseURL: process.env.API_URL ?? 'http://localhost:3333/api', // ← /api pridané
-  withCredentials: false, // ✅ Zmeň na false (nepoužívame cookies, len Bearer token)
+  baseURL: process.env.API_URL ?? 'http://localhost:3333/api', // include api prefix
+  withCredentials: false, // use bearer token instead of cookies
   headers: {
-    'Content-Type': 'application/json', // ✅ Pridaj default content-type
+    'Content-Type': 'application/json', // default json content type
   },
 });
 
 const DEBUG = process.env.NODE_ENV === 'development';
 
-// Add interceptor to add authorization header for api calls
+// add authorization header
 api.interceptors.request.use(
   (config) => {
     const token = authManager.getToken();
@@ -31,35 +31,35 @@ api.interceptors.request.use(
     }
 
     if (DEBUG) {
-      console.info('→ ', config.method?.toUpperCase(), config.url, config.data); // ✅ Lepší log
+      console.info('-> ', config.method?.toUpperCase(), config.url, config.data); // dev log
     }
 
     return config;
   },
   (error) => {
     if (DEBUG) {
-      console.error('→ ', error);
+      console.error('-> ', error.response?.status, error.response?.config?.url, error.response?.data ?? error);
     }
 
     return Promise.reject(error);
   },
 );
 
-// Add interceptor for response to trigger logout
+// log responses and handle unauthorized
 api.interceptors.response.use(
   (response) => {
     if (DEBUG) {
-      console.info('← ', response.status, response.config.url, response.data); // ✅ Lepší log
+      console.info('-> ', response.status, response.config.url, response.data); // dev log
     }
 
     return response;
   },
   (error) => {
     if (DEBUG) {
-      console.error('← ', error.response?.status, error.response?.config?.url, error.response?.data ?? error);
+      console.error('-> ', error.response?.status, error.response?.config?.url, error.response?.data ?? error);
     }
 
-    // Server API request returned unauthorized response so we trigger logout
+    // logout when api says unauthorized
     const status = error?.response?.status;
     const cfg = error?.response?.config;
 
@@ -72,9 +72,10 @@ api.interceptors.response.use(
 );
 
 export default boot(({ app }) => {
-  // For use inside Vue files (Options API) through this.$axios and this.$api
+  // expose axios instances to vue components
   app.config.globalProperties.$axios = axios;
   app.config.globalProperties.$api = api;
 });
 
 export { api };
+
