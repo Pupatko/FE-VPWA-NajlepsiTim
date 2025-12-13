@@ -23,6 +23,7 @@
               :options="notificationOptions"
               color="primary"
               type="radio"
+              :disable="!isAuthenticated"
             />
 
             <q-separator class="q-my-md" />
@@ -33,7 +34,7 @@
           </q-card-section>
         </q-card>
 
-        <!-- Activity Status (placeholder) -->
+        <!-- Activity Status -->
         <q-card flat bordered class="settings-card q-mb-lg">
           <q-card-section>
             <div class="text-h6 q-mb-sm">
@@ -41,7 +42,7 @@
               Activity Status
             </div>
             <div class="text-caption text-grey-7 q-mb-md">
-              This is a placeholder. Status will be synced via WebSocket.
+              Set how others see you. Changes sync in real time across your sessions.
             </div>
 
             <q-option-group
@@ -49,19 +50,27 @@
               :options="activityOptions"
               color="primary"
               type="radio"
+              :disable="!isAuthenticated"
             />
 
             <q-separator class="q-my-md" />
             <div class="text-caption text-grey-7">
               <q-icon name="info" size="xs" class="q-mr-xs" />
-              Your status will be synced in real-time
+              When you log out you will appear offline automatically.
             </div>
           </q-card-section>
         </q-card>
 
         <!-- Save Button -->
         <div class="row justify-end q-mt-lg">
-          <q-btn label="Save Changes" color="primary" unelevated @click="saveSettings" class="q-px-lg" />
+          <q-btn
+            label="Save Changes"
+            color="primary"
+            unelevated
+            @click="saveSettings"
+            class="q-px-lg"
+            :disable="!isAuthenticated"
+          />
         </div>
       </div>
     </div>
@@ -69,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useStore } from 'vuex'
@@ -78,6 +87,7 @@ import authService, { User } from 'src/services/auth.service'
 const router = useRouter()
 const $q = useQuasar()
 const store = useStore()
+type ActivityStatus = 'online' | 'dnd' | 'offline'
 
 // Notification settings (backend: 'all' | 'mentions_only')
 const notificationSettings = ref<'all' | 'mentions_only'>('all')
@@ -95,15 +105,17 @@ const notificationOptions = [
 ]
 
 // Activity status (frontend: 'online' | 'dnd' | 'offline')
-const activityStatus = ref<'online' | 'dnd' | 'offline'>('online')
+const activityStatus = ref<ActivityStatus>(store.state.presence?.selfStatus || 'offline')
 const activityOptions = [
   { label: 'Online', value: 'online', color: 'online-status' },
   { label: 'Do Not Disturb', value: 'dnd', color: 'dnd-status' },
   { label: 'Offline', value: 'offline', color: 'offline-status' },
 ]
+const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
+const currentPresence = computed<ActivityStatus>(() => store.state.presence?.selfStatus || 'offline')
 
-// farba ikonky podľa statusu
-const getStatusColor = (status: 'online' | 'dnd' | 'offline') => {
+// map status to icon color
+const getStatusColor = (status: ActivityStatus) => {
   const statusMap: Record<string, string> = {
     online: 'online-status',
     dnd: 'dnd-status',
@@ -112,20 +124,25 @@ const getStatusColor = (status: 'online' | 'dnd' | 'offline') => {
   return statusMap[status] || 'grey'
 }
 
-// načítaj aktuálne hodnoty zo store po otvorení stránky
+const stateNumberToStatus = (state?: number | null): ActivityStatus => {
+  if (state === 2) return 'dnd'
+  if (state === 3) return 'offline'
+  return 'online'
+}
+
+// load existing values from store when opening the page
 onMounted(() => {
   const user = store.state.auth.user as User | null
 
   if (user) {
     // backend -> frontend
     notificationSettings.value = user.notificationMode
-
-    if (user.state === 1) activityStatus.value = 'online'
-    else if (user.state === 2) activityStatus.value = 'dnd'
-    else if (user.state === 3) activityStatus.value = 'offline'
+    activityStatus.value = stateNumberToStatus(user.state)
+  } else {
+    activityStatus.value = currentPresence.value
   }
 
-  // ak nie je v localStorage nič, inicializuj
+  // initialize notification settings in localStorage if missing
   const existing = localStorage.getItem('notificationSettings')
   if (!existing) {
     localStorage.setItem(
@@ -139,8 +156,29 @@ onMounted(() => {
   }
 })
 
+watch(currentPresence, (status) => {
+  activityStatus.value = status
+})
+
+watch(isAuthenticated, (auth) => {
+  if (!auth) {
+    activityStatus.value = 'offline'
+  }
+})
+
 const saveSettings = async () => {
   try {
+    if (!isAuthenticated.value) {
+      activityStatus.value = 'offline'
+      store.dispatch('presence/setSelfStatus', 'offline')
+      $q.notify({
+        type: 'negative',
+        message: 'Please log in to update your settings',
+      })
+      router.push('/login')
+      return
+    }
+
     const stateNumber: 1 | 2 | 3 =
       activityStatus.value === 'online'
         ? 1

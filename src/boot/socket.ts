@@ -288,6 +288,7 @@ export default boot(async ({ app }) => {
     console.warn('Socket not initialized: missing userId (login required)')
     app.config.globalProperties.$socket = null
     ;(window as any).$socket = null
+    store.dispatch('presence/reset')
   }
 
   store.watch(
@@ -296,6 +297,7 @@ export default boot(async ({ app }) => {
       if (!newId) {
         console.log('[socket] user logged out, disconnecting socket')
         disconnectSocket(app)
+        store.dispatch('presence/reset')
         return
       }
 

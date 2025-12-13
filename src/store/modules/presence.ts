@@ -11,9 +11,12 @@ export interface PresenceState {
 }
 
 const loadPreferredStatus = (): PresenceStatus => {
-  if (typeof window === 'undefined') return 'online'
+  if (typeof window === 'undefined') return 'offline'
   const saved = localStorage.getItem('preferredStatus')
-  return saved === 'dnd' || saved === 'offline' ? saved : 'online'
+  if (saved === 'online' || saved === 'dnd' || saved === 'offline') {
+    return saved as PresenceStatus
+  }
+  return 'offline'
 }
 
 const loadLastSyncAt = (): string | null => {
@@ -50,6 +53,15 @@ const state = (): PresenceState => ({
   lastSyncAt: loadLastSyncAt(),
 })
 
+const resetState = (state: PresenceState) => {
+  state.byUserId = {}
+  state.selfStatus = 'offline'
+  state.appVisible = true
+  state.lastSyncAt = null
+  persistPreferredStatus('offline')
+  persistLastSyncAt(null)
+}
+
 const mutations = {
   SET_STATUS(state: PresenceState, payload: { userId: number; status: PresenceStatus }) {
     const { userId, status } = payload
@@ -66,6 +78,9 @@ const mutations = {
   SET_LAST_SYNC(state: PresenceState, value: string | null) {
     state.lastSyncAt = value
     persistLastSyncAt(value)
+  },
+  RESET_STATE(state: PresenceState) {
+    resetState(state)
   },
 }
 
@@ -85,6 +100,9 @@ const actions = {
   },
   setLastSyncAt({ commit }: any, value: string | null) {
     commit('SET_LAST_SYNC', value)
+  },
+  reset({ commit }: any) {
+    commit('RESET_STATE')
   },
 }
 
