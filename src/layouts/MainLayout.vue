@@ -196,7 +196,7 @@ export default {
         // /list -> fetch members and redirect
         if (isCommand && trimmed.startsWith('/list')) {
           if (!channelId || Number.isNaN(channelId)) {
-            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            $q.notify({ type: 'warning', message: 'Pick a channel from the list first' })
             return
           }
           try {
@@ -206,7 +206,7 @@ export default {
             console.error('List command failed', err)
             $q.notify({
               type: 'negative',
-              message: err?.response?.data?.message || 'Nepodarilo sa nacitat clenov kanala',
+              message: err?.response?.data?.message || 'Could not load channel members',
             })
           }
           return
@@ -215,7 +215,7 @@ export default {
         // /join via socket
         if (isCommand && trimmed.startsWith('/join')) {
           if (!socket) {
-            $q.notify({ type: 'negative', message: 'WebSocket nie je pripojeny.' })
+            $q.notify({ type: 'negative', message: 'WebSocket is not connected.' })
             return
           }
 
@@ -225,7 +225,7 @@ export default {
           const isPrivate = rawFlag === 'private'
 
           if (!channelName) {
-            $q.notify({ type: 'warning', message: 'Pouzitie: /join channelName [private]' })
+            $q.notify({ type: 'warning', message: 'Usage: /join channelName [private]' })
             return
           }
 
@@ -261,12 +261,12 @@ export default {
         // /quit via socket
         if (isCommand && trimmed.startsWith('/quit')) {
           if (!socket) {
-            $q.notify({ type: 'negative', message: 'WebSocket nie je pripojeny.' })
+            $q.notify({ type: 'negative', message: 'WebSocket is not connected.' })
             return
           }
 
           if (!channelId || Number.isNaN(channelId)) {
-            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            $q.notify({ type: 'warning', message: 'Pick a channel from the list first' })
             return
           }
 
@@ -293,12 +293,12 @@ export default {
         // /revoke via socket
         if (isCommand && trimmed.startsWith('/revoke')) {
           if (!socket) {
-            $q.notify({ type: 'negative', message: 'WebSocket nie je pripojeny.' })
+            $q.notify({ type: 'negative', message: 'WebSocket is not connected.' })
             return
           }
 
           if (!channelId || Number.isNaN(channelId)) {
-            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            $q.notify({ type: 'warning', message: 'Pick a channel from the list first' })
             return
           }
 
@@ -306,7 +306,7 @@ export default {
           const nickname = parts[1]
 
           if (!nickname) {
-            $q.notify({ type: 'warning', message: 'Pouzitie: /revoke nickname' })
+            $q.notify({ type: 'warning', message: 'Usage: /revoke nickname' })
             return
           }
 
@@ -331,12 +331,12 @@ export default {
         // /kick via socket
         if (isCommand && trimmed.startsWith('/kick')) {
           if (!socket) {
-            $q.notify({ type: 'negative', message: 'WebSocket nie je pripojeny.' })
+            $q.notify({ type: 'negative', message: 'WebSocket is not connected.' })
             return
           }
 
           if (!channelId || Number.isNaN(channelId)) {
-            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            $q.notify({ type: 'warning', message: 'Pick a channel from the list first' })
             return
           }
 
@@ -344,7 +344,7 @@ export default {
           const nickname = parts[1]
 
           if (!nickname) {
-            $q.notify({ type: 'warning', message: 'Pouzitie: /kick nickname' })
+            $q.notify({ type: 'warning', message: 'Usage: /kick nickname' })
             return
           }
 
@@ -370,12 +370,12 @@ export default {
         if (isCommand) {
           if (trimmed.startsWith('/invite')) {
             if (!socket) {
-              $q.notify({ type: 'negative', message: 'WebSocket nie je pripojeny.' })
+            $q.notify({ type: 'negative', message: 'WebSocket is not connected.' })
               return
             }
 
             if (!channelId || Number.isNaN(channelId)) {
-              $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            $q.notify({ type: 'warning', message: 'Pick a channel from the list first' })
               return
             }
 
@@ -383,7 +383,7 @@ export default {
             const nickname = parts[1]
 
             if (!nickname) {
-              $q.notify({ type: 'warning', message: 'Pouzitie: /invite nickname' })
+            $q.notify({ type: 'warning', message: 'Usage: /invite nickname' })
               return
             }
 
@@ -394,7 +394,7 @@ export default {
                 if (!response?.ok) {
                   $q.notify({
                     type: 'negative',
-                    message: response?.error || 'Chyba pri /invite',
+                    message: response?.error || 'Invite failed',
                   })
                   return
                 }
@@ -406,7 +406,7 @@ export default {
           }
 
           if (!channelId || Number.isNaN(channelId)) {
-            $q.notify({ type: 'warning', message: 'Najprv si vyber kanal vlavo v zozname' })
+            $q.notify({ type: 'warning', message: 'Pick a channel from the list first' })
             return
           }
 
@@ -433,7 +433,7 @@ export default {
         if (!isCommand && selfStatus.value === 'offline') {
           $q.notify({
             type: 'warning',
-            message: 'Si v offline rezime. Prepni status na online alebo DND pre odosielanie sprav.',
+            message: 'You are offline. Switch to online or DND to send messages.',
           })
           return
         }
@@ -441,7 +441,7 @@ export default {
         if (!channelId || Number.isNaN(channelId)) {
           $q.notify({
             type: 'warning',
-            message: 'Najprv si vyber kanal vlavo v zozname',
+            message: 'Pick a channel from the list first',
           })
           return
         }
@@ -458,7 +458,7 @@ export default {
         console.error('send failed', error)
         $q.notify({
           type: 'negative',
-          message: error?.response?.data?.message || 'Nepodarilo sa odoslat spravu / prikaz',
+          message: error?.response?.data?.message || 'Failed to send message or command',
         })
       }
     }

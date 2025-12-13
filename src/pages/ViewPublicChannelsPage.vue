@@ -66,7 +66,7 @@ const loadPublicChannels = async () => {
     console.error('Failed to load public channels', error)
     $q.notify({
       type: 'negative',
-      message: 'Nepodarilo sa nacitat verejne kanaly',
+      message: 'Could not load public channels',
     })
   } finally {
     loading.value = false
@@ -97,7 +97,7 @@ const joinChannel = async (channel: Channel) => {
     console.error('Failed to join channel', error)
     $q.notify({
       type: 'negative',
-      message: error?.response?.data?.message || error?.message || 'Nepodarilo sa pripojit do kanala',
+      message: error?.response?.data?.message || error?.message || 'Could not join the channel',
     })
   }
 }

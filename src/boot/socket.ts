@@ -166,7 +166,7 @@ function attachListeners(s: Socket) {
         store.dispatch('channels/handleChannelRemoved', payload.channelId)
         Notify.create({
           type: 'negative',
-          message: `Bol si odstraneny z kanala #${payload.name || payload.channelId}`,
+          message: `You were removed from channel #${payload.name || payload.channelId}`,
           caption: 'channel revoked',
         })
         try {
@@ -180,7 +180,7 @@ function attachListeners(s: Socket) {
         store.dispatch('channels/handleChannelRemoved', payload.channelId)
         Notify.create({
           type: 'negative',
-          message: `Bol si vykopnuty z kanala #${payload.name || payload.channelId}`,
+          message: `You were kicked from channel #${payload.name || payload.channelId}`,
           caption: 'channel kicked',
         })
         try {
