@@ -37,11 +37,22 @@ const auth: Module<AuthState, any> = {
       return false
     },
 
-    async login ({ commit }, credentials: LoginCredentials) {
+    async login ({ commit, dispatch }, credentials: LoginCredentials) {
       const token = await authService.login(credentials)
       authManager.setToken(token.token)
 
       const user = await authService.me()
+      // set backend + store status to online right after login
+      try {
+        await authService.setStatus('online')
+        if (user) {
+          user.state = 1
+        }
+        dispatch('presence/setSelfStatus', 'online', { root: true })
+      } catch (e) {
+        // if status update fails, continue with login
+      }
+
       commit('SET_USER', user)
       return user
     },

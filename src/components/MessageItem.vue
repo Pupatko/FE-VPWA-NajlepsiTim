@@ -83,10 +83,19 @@ export default {
 
     const status = computed(() => {
       const getter = store.getters['presence/statusFor']
-      const val = typeof getter === 'function' ? getter(props.userId || props.message.userId) : undefined
-      if (val === 'dnd') return 'dnd'
-      if (val === 'online') return 'online'
-      return 'offline'
+      const msgUserId = props.userId || props.message.userId
+      const val = typeof getter === 'function' ? getter(msgUserId) : undefined
+
+      if (val) return val
+
+      // fallback to self status if this is the current user
+      const currentId = store.state.auth?.user?.id
+      if (currentId && msgUserId && currentId === msgUserId) {
+        return store.state.presence?.selfStatus || 'online'
+      }
+
+      // last-resort fallback
+      return 'online'
     })
 
     return {
