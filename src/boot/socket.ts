@@ -119,12 +119,15 @@ function attachListeners(s: Socket) {
 
     switch (payload.type) {
       case 'channel_created':
-        store.dispatch('channels/handleChannelCreated', {
-          id: payload.channelId,
-          name: payload.name,
-          private: payload.private,
-          isOwner: true,
-        })
+        // only the creator is a member/owner; skip for other users to avoid ghost ownership
+        if (payload.ownerId && payload.ownerId === currentUserId) {
+          store.dispatch('channels/handleChannelCreated', {
+            id: payload.channelId,
+            name: payload.name,
+            private: payload.private,
+            isOwner: true,
+          })
+        }
         break
 
       case 'channel_joined':
