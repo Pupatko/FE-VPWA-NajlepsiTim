@@ -96,6 +96,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useQuasar } from 'quasar'
 import store from 'src/store'
 import type { Channel } from 'src/store/modules/channels'
 import { api } from 'src/boot/axios'
@@ -107,6 +108,7 @@ const props = defineProps<Props>()
 
 const router = useRouter()
 const route = useRoute()
+const $q = useQuasar()
 
 const loading = ref(false)
 
@@ -130,22 +132,32 @@ const goCreateChannel = () => router.push('/create-channel')
 const acceptInvite = async (channel: Channel) => {
   try {
     const socket = (window as any).$socket as any
-    if (socket && socket.connected) {
+    if (!socket || !socket.connected) {
+      throw new Error('Socket is not connected')
+    }
+
+    await new Promise((resolve, reject) => {
       socket.emit(
         'command:join',
         { channelName: channel.name, private: channel.private },
         (response: any) => {
           if (!response?.ok) {
-            console.error('Invite accept failed', response?.error)
+            reject(new Error(response?.error || 'Invite accept failed'))
             return
           }
+          resolve(response)
         }
       )
-    }
+    })
+
     store.dispatch('channels/acceptInvite', channel)
     router.push(`/channels/${channel.id}`)
   } catch (err) {
     console.error(err)
+    $q.notify({
+      type: 'negative',
+      message: (err as any)?.message || 'Failed to accept invite',
+    })
   }
 }
 
