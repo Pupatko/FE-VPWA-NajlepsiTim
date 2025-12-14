@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 import { api } from 'src/boot/axios'
@@ -83,6 +83,7 @@ interface Member {
 }
 
 const members = ref<Member[]>([])
+let systemHandler: ((payload: any) => void) | null = null
 
 const goBack = () => {
   router.back()
@@ -105,6 +106,43 @@ async function loadMembers() {
 }
 
 onMounted(loadMembers)
+onMounted(() => {
+  const channelId = Number(route.params.channelId)
+  const socket = (window as any).$socket as any
+
+  if (!socket || typeof socket.on !== 'function' || !channelId) return
+
+  systemHandler = (payload: any) => {
+    const targetChannel =
+      payload?.channelId || payload?.channel_id // normalize snake / camel
+    if (!targetChannel || Number(targetChannel) !== channelId) return
+
+    switch (payload?.type) {
+      case 'join':
+      case 'kick':
+      case 'revoke':
+      case 'user_left':
+      case 'channel_closed':
+      case 'channel_deleted':
+      case 'channel_revoked':
+      case 'channel_kicked':
+      case 'channel_user_left':
+        void loadMembers()
+        break
+      default:
+        break
+    }
+  }
+
+  socket.on('system', systemHandler)
+})
+
+onBeforeUnmount(() => {
+  const socket = (window as any).$socket as any
+  if (socket && systemHandler) {
+    socket.off('system', systemHandler)
+  }
+})
 
 const statusColor = (status: 'online' | 'dnd' | 'offline') => {
   if (status === 'dnd') return 'dnd-status'
