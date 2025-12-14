@@ -5,10 +5,12 @@
       dense
       spread
       no-caps
-      toggle-color="channel-active"
-      color="grey-7"
-      text-color="white"
-      class="full-width"
+      rounded
+      unelevated
+      toggle-color="primary"
+      color="transparent"
+      text-color="grey-5"
+      class="full-width channel-toggle"
       @update:model-value="setType"
       :options="[
         { label: 'Public', value: 'public' },
@@ -38,5 +40,21 @@ const setType = (type: 'public' | 'private') => {
 .channel-type {
   background-color: $sidebar-bg;
   border-bottom: 1px solid $border-light;
+}
+
+.channel-toggle :deep(.q-btn) {
+  border: 1px solid transparent;
+}
+
+.channel-toggle :deep(.q-btn--active) {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  color: $text-inverse;
+}
+
+.channel-toggle :deep(.q-btn:not(.q-btn--active)) {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: $text-muted;
 }
 </style>
