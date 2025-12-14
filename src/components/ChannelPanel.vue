@@ -1,8 +1,8 @@
 <template>
-  <div class="column fit channel-panel q-pb-md">
-    <channel-panel-header :show-public="showPublicAll" @toggle-public="togglePublicAll" />
-    <channel-panel-type @type-change="setType" />
-    <div class="col-grow q-pt-sm">
+  <div class="column fit channel-panel">
+    <div class="panel-scroll">
+      <channel-panel-header :show-public="showPublicAll" @toggle-public="togglePublicAll" />
+      <channel-panel-type @type-change="setType" />
       <channel-panel-list :show-public-all="showPublicAll" :active-type="activeType" />
     </div>
   </div>
@@ -28,12 +28,17 @@ const setType = (type: 'public' | 'private') => {
 
 <style lang="scss" scoped>
 .channel-panel {
-  width: 260px;
+  width: 280px;
   background-color: $sidebar-bg;
   color: $text-inverse;
+  border-right: 1px solid $border-light;
+  min-height: 100%;
+}
+
+.panel-scroll {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid $border-light;
-  gap: 4px;
+  height: 100vh;
+  overflow: hidden;
 }
 </style>

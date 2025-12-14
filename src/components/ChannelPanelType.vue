@@ -1,22 +1,19 @@
 <template>
-  <div class="channel-type bg-dark q-px-sm q-py-sm row items-center q-gutter-sm">
-    <q-btn
-      :color="activeType === 'public' ? 'channel-active' : 'grey-6'"
-      label="Public"
-      flat
-      no-caps
+  <div class="channel-type bg-dark q-px-sm q-py-xs">
+    <q-btn-toggle
+      v-model="activeType"
       dense
-      class="col rounded-borders"
-      @click="setType('public')"
-    />
-    <q-btn
-      :color="activeType === 'private' ? 'channel-active' : 'grey-6'"
-      label="Private"
-      flat
+      spread
       no-caps
-      dense
-      class="col rounded-borders"
-      @click="setType('private')"
+      toggle-color="channel-active"
+      color="grey-7"
+      text-color="white"
+      class="full-width"
+      @update:model-value="setType"
+      :options="[
+        { label: 'Public', value: 'public' },
+        { label: 'Private', value: 'private' }
+      ]"
     />
   </div>
 </template>
@@ -41,9 +38,5 @@ const setType = (type: 'public' | 'private') => {
 .channel-type {
   background-color: $sidebar-bg;
   border-bottom: 1px solid $border-light;
-
-  .q-btn {
-    color: $text-inverse;
-  }
 }
 </style>

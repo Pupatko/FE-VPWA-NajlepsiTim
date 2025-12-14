@@ -1,8 +1,12 @@
 <template>
-  <div class="channel-panel-header q-pa-md column q-gutter-xs text-white">
-
-    <div class="row items-center justify-between">
-      <div class="text-h6 text-weight-bold">Channels</div>
+<div class="channel-panel-header q-pa-md column q-gutter-xs text-white">
+    <div class="row items-center justify-between no-wrap">
+      <div>
+        <div class="text-h6 text-weight-bold">Channels</div>
+        <div class="text-caption text-blue-2 cursor-pointer hover-underline" @click="viewAll">
+          View all public channels
+        </div>
+      </div>
       <q-btn
         flat
         dense
@@ -12,13 +16,6 @@
         @click="addChannel"
         aria-label="Add channel"
       />
-    </div>
-
-    <div
-      class="text-caption text-blue-2 cursor-pointer q-mt-xs hover-underline"
-      @click="viewAll"
-    >
-      View all public channels
     </div>
   </div>
 </template>

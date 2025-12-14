@@ -10,7 +10,7 @@
       <div v-if="invitedChannels.length" class="q-px-md q-mb-xs text-grey-5 text-caption">
         Invitations
       </div>
-      <div v-if="invitedChannels.length" class="q-gutter-y-sm q-px-xs">
+      <div v-if="invitedChannels.length" class="q-gutter-y-sm q-px-sm">
         <q-item
           v-for="inv in invitedChannels"
           :key="`invite-${inv.id}`"
@@ -44,44 +44,51 @@
       </div>
 
       <!-- Channels -->
-      <q-item
-        v-for="channel in filteredChannels"
-        :key="channel.id"
-        clickable
-        v-ripple
-        :active="activeChannelId === channel.id"
-        active-class="active-channel"
-        @click="selectChannel(channel)"
-        class="q-px-md channel-row"
+      <q-virtual-scroll
+        :items="filteredChannels"
+        :virtual-scroll-item-size="68"
+        style="max-height: calc(100vh - 260px);"
       >
-        <q-item-section avatar>
-          <q-icon :name="channel.private ? 'lock' : 'tag'" :color="channel.private ? 'amber' : 'blue-4'" />
-        </q-item-section>
-
-        <q-item-section>
-          <q-item-label class="text-white">#{{ channel.name }}</q-item-label>
-          <q-item-label caption class="text-grey-5">
-            {{ channel.isOwner ? 'Owner' : 'Member' }}
-          </q-item-label>
-        </q-item-section>
-
-        <q-item-section side v-if="activeChannelId === channel.id" class="channel-actions">
-          <q-btn dense flat round icon="logout" color="warning" @click.stop="leaveChannel(channel)">
-            <q-tooltip>Leave channel</q-tooltip>
-          </q-btn>
-          <q-btn
-            v-if="channel.isOwner"
-            dense
-            flat
-            round
-            icon="delete"
-            color="negative"
-            @click.stop="deleteChannel(channel)"
+        <template #default="{ item: channel }">
+          <q-item
+            :key="channel.id"
+            clickable
+            v-ripple
+            :active="activeChannelId === channel.id"
+            active-class="active-channel"
+            @click="selectChannel(channel)"
+            class="q-px-md channel-row"
           >
-            <q-tooltip>Delete channel</q-tooltip>
-          </q-btn>
-        </q-item-section>
-      </q-item>
+            <q-item-section avatar>
+              <q-icon :name="channel.private ? 'lock' : 'tag'" :color="channel.private ? 'amber' : 'blue-4'" />
+            </q-item-section>
+
+            <q-item-section>
+              <q-item-label class="text-white ellipsis">#{{ channel.name }}</q-item-label>
+              <q-item-label caption class="text-grey-5">
+                {{ channel.isOwner ? 'Owner' : 'Member' }}
+              </q-item-label>
+            </q-item-section>
+
+            <q-item-section side v-if="activeChannelId === channel.id" class="channel-actions">
+              <q-btn dense flat round icon="logout" color="warning" @click.stop="leaveChannel(channel)">
+                <q-tooltip>Leave channel</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="channel.isOwner"
+                dense
+                flat
+                round
+                icon="delete"
+                color="negative"
+                @click.stop="deleteChannel(channel)"
+              >
+                <q-tooltip>Delete channel</q-tooltip>
+              </q-btn>
+            </q-item-section>
+          </q-item>
+        </template>
+      </q-virtual-scroll>
     </template>
   </q-list>
 </template>
@@ -234,8 +241,8 @@ onMounted(loadChannels)
 .channel-list {
   background-color: $sidebar-bg;
   color: $text-inverse;
-  overflow-y: auto;
-  padding-bottom: 12px;
+  overflow-y: hidden;
+  padding-bottom: 8px;
 }
 
 .q-item {
